@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rosettalog.example/schemas/envelope.schema.json",
+  "title": "RosettaLog Event Envelope",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "event_id",
+    "ingest_time",
+    "source",
+    "raw",
+    "raw_sha256",
+    "parser",
+    "event",
+    "unmapped",
+    "flags"
+  ],
+  "properties": {
+    "event_id": { "type": "string", "minLength": 1 },
+    "ingest_time": { "type": "string", "format": "date-time" },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "file", "byte_offset", "line_no"],
+      "properties": {
+        "id": { "type": "string" },
+        "file": { "type": "string" },
+        "byte_offset": { "type": "integer", "minimum": 0 },
+        "line_no": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "raw": { "type": "string" },
+    "raw_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "parser": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version", "confidence"],
+      "properties": {
+        "name": { "type": "string" },
+        "version": { "type": "integer", "minimum": 1 },
+        "confidence": { "type": "number", "minimum": 0.0, "maximum": 1.0 }
+      }
+    },
+    "event": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["time", "class_name", "action"],
+      "properties": {
+        "time": { "type": "string", "format": "date-time" },
+        "class_uid": { "type": ["integer", "null"] },
+        "class_name": { "type": "string" },
+        "activity_id": { "type": ["integer", "null"] },
+        "action": { "type": "string" },
+        "severity": { "type": ["string", "null"] },
+        "src_endpoint": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "ip": { "type": ["string", "null"] },
+            "port": { "type": ["integer", "null"] }
+          }
+        },
+        "dst_endpoint": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "ip": { "type": ["string", "null"] },
+            "port": { "type": ["integer", "null"] }
+          }
+        },
+        "protocol_name": { "type": ["string", "null"] },
+        "message": { "type": ["string", "null"] }
+      }
+    },
+    "unmapped": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "flags": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["duplicate_of", "duplicate_count", "tz_assumed", "masked"],
+      "properties": {
+        "duplicate_of": { "type": ["string", "null"] },
+        "duplicate_count": { "type": "integer", "minimum": 0 },
+        "tz_assumed": { "type": "boolean" },
+        "masked": { "type": "boolean" }
+      }
+    }
+  }
+}

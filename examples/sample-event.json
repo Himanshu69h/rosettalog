@@ -1,0 +1,52 @@
+{
+  "event_id": "01J9KQ31KBZFH5K8D7V7JYV6N6",
+  "ingest_time": "2026-09-29T08:15:00Z",
+  "source": {
+    "id": "fw01",
+    "file": "fw01.log",
+    "byte_offset": 48213,
+    "line_no": 812
+  },
+  "raw": "Sep 29 08:15:00 fw01 %ASA-4-106023: Deny tcp src 10.0.0.5/443 dst 203.0.113.4/443 by access-group \"OUTSIDE_IN\"",
+  "raw_sha256": "c8f8d778f10b56f24d1d83cdbb57d4ef1039b8a04f7d4d2c6a225dc10f4a0b2d",
+  "parser": {
+    "name": "asa_syslog",
+    "version": 3,
+    "confidence": 0.97
+  },
+  "event": {
+    "time": "2026-09-29T08:15:00Z",
+    "category_uid": 4,
+    "class_uid": 2001,
+    "activity_id": 1,
+    "action": "deny",
+    "action_id": 1,
+    "severity_id": 5,
+    "src_endpoint": {
+      "ip": "10.0.0.5",
+      "port": 443,
+      "hostname": "host-a.internal"
+    },
+    "dst_endpoint": {
+      "ip": "203.0.113.4",
+      "port": 443,
+      "hostname": "vip.example.net"
+    },
+    "network": {
+      "protocol": "tcp",
+      "transport": "tcp",
+      "direction": "ingress"
+    },
+    "class_name": "Network Activity"
+  },
+  "unmapped": {
+    "vendor_message": "ASA-4-106023",
+    "access_group": "OUTSIDE_IN"
+  },
+  "flags": {
+    "duplicate_of": null,
+    "duplicate_count": 0,
+    "tz_assumed": false,
+    "masked": true
+  }
+}

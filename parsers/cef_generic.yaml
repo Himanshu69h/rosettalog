@@ -1,0 +1,25 @@
+name: cef_generic
+version: 1
+state: draft
+source_format: cef
+envelope:
+  header_regex: '^CEF:.*$'
+  timestamp_format: '%Y-%m-%d %H:%M:%S'
+  tz: UTC
+templates:
+  - id: cef_rule
+    regex: '^CEF:0\|(?P<device>[^|]+)\|(?P<product>[^|]+)\|(?P<version>[^|]+)\|(?P<event_code>[^|]+)\|(?P<action>[^|]+)\|(?P<severity>\d)\|(?P<rest>.*)$'
+    fields:
+      - name: action
+        type: free_text
+        ocsf_path: event.action
+        confidence: 0.90
+      - name: severity
+        type: int
+        ocsf_path: event.severity
+        confidence: 0.80
+    event_class: Detection Finding
+    activity: observe
+unmapped_policy: retain
+created_from: samples/known/cef.log
+verify_report_ref: null

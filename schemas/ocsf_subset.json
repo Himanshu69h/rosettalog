@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RosettaLog OCSF-aligned subset",
+  "description": "This is an OCSF-aligned subset, not a full OCSF implementation.",
+  "version": 1,
+  "classes": [
+    "Network Activity",
+    "Authentication",
+    "Detection Finding"
+  ],
+  "required_fields": [
+    "time",
+    "class_name",
+    "action",
+    "src_endpoint.ip",
+    "dst_endpoint.ip"
+  ],
+  "optional_fields": [
+    "class_uid",
+    "activity_id",
+    "severity",
+    "src_endpoint.port",
+    "dst_endpoint.port",
+    "protocol_name",
+    "message"
+  ],
+  "retention_rules": {
+    "unmapped": "Vendor-specific attributes remain in unmapped rather than being dropped.",
+    "masking": "Only the normalized copy may be masked. Raw bytes are preserved in the raw store.",
+    "confidence": "Each field mapping carries an explicit confidence score."
+  }
+}

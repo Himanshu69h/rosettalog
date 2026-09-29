@@ -1,0 +1,5 @@
+# This file is generated from pyproject.toml and should not be edited by hand.
+# Use: pip install -e ".[dev]"
+
+# Base install is defined in pyproject.toml under [project].dependencies.
+# Optional extras live under [project.optional-dependencies].

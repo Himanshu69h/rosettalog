@@ -1,0 +1,29 @@
+name: fortigate_kv
+version: 1
+state: draft
+source_format: key_value
+envelope:
+  header_regex: null
+  timestamp_format: '%Y-%m-%d %H:%M:%S'
+  tz: UTC
+templates:
+  - id: fortigate_rule
+    regex: '^date=(?P<date>\d{4}-\d{2}-\d{2})\s+time=(?P<time>\d{2}:\d{2}:\d{2})\s+log_id=(?P<log_id>\d+)\s+action=(?P<action>deny|accept)\s+srcip=(?P<src_ip>\d+\.\d+\.\d+\.\d+)\s+dstip=(?P<dst_ip>\d+\.\d+\.\d+\.\d+)\s+proto=(?P<proto>tcp|udp)\s+srcport=(?P<src_port>\d+)\s+dstport=(?P<dst_port>\d+)$'
+    fields:
+      - name: action
+        type: enum
+        ocsf_path: event.action
+        confidence: 0.96
+      - name: src_ip
+        type: ipv4
+        ocsf_path: event.src_endpoint.ip
+        confidence: 0.98
+      - name: dst_ip
+        type: ipv4
+        ocsf_path: event.dst_endpoint.ip
+        confidence: 0.98
+    event_class: Network Activity
+    activity: accept
+unmapped_policy: retain
+created_from: samples/known/fortigate.log
+verify_report_ref: null

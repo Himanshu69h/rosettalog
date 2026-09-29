@@ -1,0 +1,25 @@
+name: json_generic
+version: 1
+state: draft
+source_format: json
+envelope:
+  header_regex: '^\s*\{.*\}\s*$'
+  timestamp_format: '%Y-%m-%dT%H:%M:%SZ'
+  tz: UTC
+templates:
+  - id: json_rule
+    regex: '^\s*\{.*\}\s*$'
+    fields:
+      - name: action
+        type: free_text
+        ocsf_path: event.action
+        confidence: 0.85
+      - name: src_ip
+        type: ipv4
+        ocsf_path: event.src_endpoint.ip
+        confidence: 0.90
+    event_class: Network Activity
+    activity: record
+unmapped_policy: retain
+created_from: samples/known/json.log
+verify_report_ref: null

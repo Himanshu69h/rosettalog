@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/schemas/rosettalog-envelope.schema.json",
+  "title": "RosettaLog Event Envelope",
+  "type": "object",
+  "required": [
+    "event_id",
+    "ingest_time",
+    "source",
+    "raw",
+    "raw_sha256",
+    "parser",
+    "event",
+    "unmapped",
+    "flags"
+  ],
+  "properties": {
+    "event_id": { "type": "string" },
+    "ingest_time": { "type": "string", "format": "date-time" },
+    "source": {
+      "type": "object",
+      "required": ["id", "file", "byte_offset", "line_no"],
+      "properties": {
+        "id": { "type": "string" },
+        "file": { "type": "string" },
+        "byte_offset": { "type": "integer", "minimum": 0 },
+        "line_no": { "type": "integer", "minimum": 1 }
+      },
+      "additionalProperties": true
+    },
+    "raw": { "type": "string" },
+    "raw_sha256": { "type": "string" },
+    "parser": {
+      "type": "object",
+      "required": ["name", "version", "confidence"],
+      "properties": {
+        "name": { "type": "string" },
+        "version": { "type": "integer", "minimum": 1 },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+      },
+      "additionalProperties": true
+    },
+    "event": {
+      "type": "object",
+      "required": ["time", "class_uid", "activity_id", "action"],
+      "properties": {
+        "time": { "type": "string", "format": "date-time" },
+        "category_uid": { "type": "integer" },
+        "class_uid": { "type": "integer" },
+        "activity_id": { "type": "integer" },
+        "action": { "type": "string" },
+        "action_id": { "type": "integer" },
+        "severity_id": { "type": "integer" },
+        "src_endpoint": {
+          "type": "object",
+          "properties": {
+            "ip": { "type": "string" },
+            "port": { "type": "integer" },
+            "hostname": { "type": "string" }
+          },
+          "additionalProperties": true
+        },
+        "dst_endpoint": {
+          "type": "object",
+          "properties": {
+            "ip": { "type": "string" },
+            "port": { "type": "integer" },
+            "hostname": { "type": "string" }
+          },
+          "additionalProperties": true
+        },
+        "network": {
+          "type": "object",
+          "properties": {
+            "protocol": { "type": "string" },
+            "transport": { "type": "string" },
+            "direction": { "type": "string" }
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    },
+    "unmapped": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "flags": {
+      "type": "object",
+      "required": ["duplicate_of", "tz_assumed", "masked"],
+      "properties": {
+        "duplicate_of": {
+          "type": ["string", "null"]
+        },
+        "tz_assumed": { "type": "boolean" },
+        "masked": { "type": "boolean" }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,15 @@
+sources:
+  - src: src_endpoint.ip
+    aliases: [src, srcip, source_address, source_ip]
+  - src: dst_endpoint.ip
+    aliases: [dst, dstip, destination_address, destination_ip]
+  - src: src_endpoint.port
+    aliases: [sport, srcport]
+  - src: dst_endpoint.port
+    aliases: [dport, dstport]
+  - src: protocol_name
+    aliases: [proto, protocol]
+  - src: action
+    aliases: [event_action, action_name, result]
+  - src: message
+    aliases: [msg, description, text]

@@ -1,0 +1,29 @@
+name: asa_syslog
+version: 1
+state: draft
+source_format: syslog3164
+envelope:
+  header_regex: '^.*?\s+(?P<ts>[A-Z][a-z]{2}\s+\d+\s+\d{2}:\d{2}:\d{2})\s+(?P<host>\S+)\s+.*$'
+  timestamp_format: '%b %d %H:%M:%S'
+  tz: UTC
+templates:
+  - id: asa_deny
+    regex: '^(?P<ts>[A-Z][a-z]{2}\s+\d+\s+\d{2}:\d{2}:\d{2})\s+(?P<host>\S+)\s+%ASA-\d+-\d+:\s+(?P<action>Deny|Allow)\s+(?P<proto>tcp|udp)\s+src\s+(?P<src_ip>\d+\.\d+\.\d+\.\d+)\/(?P<src_port>\d+)\s+dst\s+(?P<dst_ip>\d+\.\d+\.\d+\.\d+)\/(?P<dst_port>\d+)'
+    fields:
+      - name: action
+        type: enum
+        ocsf_path: event.action
+        confidence: 0.98
+      - name: src_ip
+        type: ipv4
+        ocsf_path: event.src_endpoint.ip
+        confidence: 0.99
+      - name: dst_ip
+        type: ipv4
+        ocsf_path: event.dst_endpoint.ip
+        confidence: 0.99
+    event_class: Network Activity
+    activity: deny
+unmapped_policy: retain
+created_from: samples/known/asa.log
+verify_report_ref: null
