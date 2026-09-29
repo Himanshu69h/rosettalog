@@ -15,7 +15,7 @@ templates:
         ocsf_path: event.action
         confidence: 0.90
       - name: severity
-        type: int
+        type: free_text
         ocsf_path: event.severity
         confidence: 0.80
     event_class: Detection Finding

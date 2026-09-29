@@ -1,13 +1,16 @@
 from __future__ import annotations
 
+from importlib import import_module
+from typing import Any
+
 try:
-    import streamlit as st  # type: ignore[import-not-found]
-except ImportError:  # pragma: no cover - optional dependency for Gate 0 base install.
+    st: Any = import_module("streamlit")
+except ImportError:  # pragma: no cover - optional dependency for base installs.
     st = None
 
 if st is not None:
     st.title("RosettaLog")
-    st.caption("Gate 0 baseline stub: schema, docs, and project skeleton only.")
+    st.caption("STUB: Gate 4 will provide the RosettaLog workflow UI.")
     st.write("Later gates will add Learn, Verify, Run, and Monitor views.")
 
 __all__ = ["st"]

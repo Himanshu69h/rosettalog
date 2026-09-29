@@ -2,12 +2,12 @@
 
 ## Current state
 
-- Current gate: Gate 1, blocked before implementation.
-- Spec status: `PROJECT_BRIEF.md` is absent from the repository and workspace search. `docs/gate0-brief.md` contains only a short Gate 0 summary, not section 16 or the later-gate requirements. The user-provided request enumerates deliverables, but is not a substitute for the referenced complete spec.
-- Baseline status: the worktree has all current project files staged as additions, but `git log` reports no commits and no `gate-0-frozen` tag exists. The claimed frozen baseline is therefore not verified in this checkout.
-- In-progress item: obtain/restore the complete `PROJECT_BRIEF.md` and verify the Gate 0 baseline before implementing Gate 1.
-- Known failures/blockers: missing authoritative spec; no Git commit or `gate-0-frozen` tag. Git author identity is not configured.
-- STUB items recorded by `docs/gate0-brief.md`: parser learning engine; verification engine; runtime parser and quarantine pipeline; DuckDB and Parquet access; FastAPI and Streamlit UIs.
+- Current gate: Gate 1, all validation green; commit/tag pending.
+- Spec status: `PROJECT_BRIEF.md` was read in full; it references section 16 but does not contain it. The current user request supplies explicit deliverables for Gates 1-4 and Freeze, plus the six design rules, and is being used to scope implementation.
+- Baseline status: verified. `HEAD` is commit `9c7c4cb` and carries the `gate-0-frozen` tag. Frozen schemas will not be edited.
+- In-progress item: verify frozen schemas are unchanged and review the worktree before committing/tagging Gate 1.
+- Known failures/blockers: none. CEF severity matches the frozen envelope contract; no schema files were edited.
+- STUB items remaining: Gate 2 learner/inference/OCSF mapper/emitter/review; Gate 3 verifier/reports/state machine/benchmark; Gate 4 drift monitor/export/API/UI/airgap test.
 
 ## Gate 0
 
@@ -17,24 +17,36 @@
 - [x] Documentation skeleton is present.
 - [x] Seed sample generator is present.
 - [x] Schema validation tests are present.
-- [ ] Verify the frozen baseline commit `gate-0-frozen` (not present in this checkout).
+- [x] Verify the frozen baseline commit `gate-0-frozen` (`9c7c4cb`).
 - [ ] Confirm clean Gate 0 validation output from this checkout before building on it.
 
 ## Gate 1
 
-- [ ] Read and follow the complete Gate 1 specification in `PROJECT_BRIEF.md` section 16 (blocked: file missing).
-- [ ] Append-only rawstore with zstd, SHA-256, and index.
-- [ ] Ingest pipeline.
-- [ ] Detector.
-- [ ] Four hand-written YAML parsers: ASA-style syslog, FortiGate key=value, CEF, and JSON.
-- [ ] Runtime engine.
-- [ ] Quarantine with reason codes.
-- [ ] Parquet sink.
-- [ ] DuckDB query support.
-- [ ] CLI commands: `run`, `trace`, `verify-event`, `verify-store`, and `query`.
-- [ ] Seeded sample generator in `samples/generate.py`.
-- [ ] Gate 1 tests, including the cases specified by the authoritative brief.
-- [ ] Ordered validation: `pip check`, `pytest`, `ruff check`, `mypy`.
+- [x] Read the provided Gate 1 scope; section 16 is absent from `PROJECT_BRIEF.md`, so the explicit gate scope in the current request supplies the implementation checklist.
+- [x] Schema-validated runtime registry executes the four YAML parser templates; focused known-format/lossless tests: 7 passed.
+- [x] Convert captured values according to parser YAML types; quarantine invalid values while retaining raw bytes. CEF severity is text per frozen envelope schema.
+- [x] Gate 1 analytics/RE2 dependencies are part of the base install; editable install and CLI help smoke test passed.
+- [x] Ingest stores raw bytes before decoding, validates envelopes, generates stable event IDs, and records reason-coded quarantine; 7 focused tests passed.
+- [x] Append-only rawstore with zstd, SHA-256, and index (4 focused tests passed, including property-based round-trip and corruption detection).
+- [x] Parquet sink and offline DuckDB SELECT support; 4 focused tests passed, including external-file denial.
+- [x] CLI `run`, `trace`, `verify-event`, `verify-store`, and `query`; 2 end-to-end CLI tests passed.
+- [x] Seeded sample generator emits all four known formats; parser fuzz, adversarial ingest, and frozen-schema negative coverage pass (18 focused tests passed).
+- [x] Parser patterns are compiled once at registry load; parser suite passes (8 focused tests).
+- [x] Ingest pipeline.
+- [x] Detector selects the matching YAML template using bounded input and RE2-backed patterns.
+- [x] Four hand-written YAML parsers execute against known ASA-style syslog, FortiGate key=value, CEF, and JSON samples.
+- [x] Runtime engine.
+- [x] Quarantine with reason codes for unknown and oversized records.
+- [x] Parquet sink.
+- [x] DuckDB query support.
+- [x] CLI commands: `run`, `trace`, `verify-event`, `verify-store`, and `query`.
+- [x] Seeded sample generator in `samples/generate.py`.
+- [x] Focused Gate 1 tests cover known formats, lossless raw, fuzz, adversarial input, and schema rejection.
+- [x] Final ordered validation after fixes: `pip check` clean; `pytest` 33 passed in 8.24s; `ruff check` clean; `mypy src` clean (14 source files).
+- [x] Validation findings resolved: 14 Ruff findings fixed in 2 passes; added dev typing stubs and typed optional imports for mypy.
+- [x] Focused post-type-alignment parser/ingest tests: 19 passed.
+- [x] Focused post-fix `mypy src`: Success, no issues found in 14 source files.
+- [x] Final ordered validation after all Gate 1 fixes: `pip check` clean; `pytest` 35 passed in 8.48s; `ruff check` clean; `mypy src` clean (14 source files).
 - [ ] Commit `Gate 1: <summary>` and tag `gate-1-done` after a green validation run.
 
 ## Gate 2
@@ -65,7 +77,7 @@
 - [ ] FastAPI service.
 - [ ] Thin Streamlit UI.
 - [ ] Docker Compose workflow.
-- [ ] Airgap test with network disabled (mark UNTESTED if Docker is unavailable).
+- [ ] Airgap test script and test with network disabled (mark UNTESTED if Docker is unavailable).
 - [ ] Gate 4 tests and ordered validation from the authoritative brief.
 - [ ] Commit `Gate 4: <summary>` and tag `gate-4-done` after a green validation run.
 

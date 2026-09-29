@@ -7,6 +7,7 @@ validation, and benchmarking work.
 
 from __future__ import annotations
 
+import json
 import random
 from pathlib import Path
 
@@ -57,18 +58,57 @@ def _build_cef_lines() -> list[str]:
     ]
 
 
-def main() -> None:
-    random.seed(SEED)
-    root = Path(__file__).resolve().parent
+def _build_json_lines(randomizer: random.Random) -> list[str]:
+    first_ip = f"10.0.0.{randomizer.randint(1, 254)}"
+    second_ip = f"203.0.113.{randomizer.randint(1, 254)}"
+    return [
+        json.dumps(
+            {
+                "time": "2026-09-29T08:15:00Z",
+                "src_ip": first_ip,
+                "dst_ip": second_ip,
+                "action": "deny",
+                "protocol": "tcp",
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+        ),
+        json.dumps(
+            {
+                "time": "2026-09-29T08:15:05Z",
+                "src_ip": "10.0.0.8",
+                "dst_ip": "198.51.100.15",
+                "action": "accept",
+                "protocol": "udp",
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+        ),
+    ]
+
+
+def generate_samples(output_dir: Path | None = None, *, seed: int = SEED) -> list[Path]:
+    root = output_dir or Path(__file__).resolve().parent / "known"
+    root.mkdir(parents=True, exist_ok=True)
+    randomizer = random.Random(seed)
+    generated: list[Path] = []
     for name, generator in {
         'asa.log': _build_asa_lines,
         'fortigate.log': _build_fortigate_lines,
         'cef.log': _build_cef_lines,
+        'json.log': lambda: _build_json_lines(randomizer),
     }.items():
-        output = root / 'known' / name
+        output = root / name
         output.write_text('\n'.join(generator()) + '\n', encoding='utf-8')
+        generated.append(output)
+    return generated
 
-    print(f"Wrote synthetic samples to {root / 'known'}")
+
+def main() -> None:
+    root = Path(__file__).resolve().parent / 'known'
+    generate_samples(root)
+
+    print(f"Wrote synthetic samples to {root}")
 
 
 if __name__ == '__main__':

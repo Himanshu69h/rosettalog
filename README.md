@@ -2,11 +2,15 @@
 
 RosettaLog is an air-gapped, containerized framework that converts perimeter-network logs into a lossless, traceable, OCSF-aligned event stream. The project is intentionally scoped to perimeter devices and to offline, auditable processing. It does not claim to ingest arbitrary logs or require a networked model.
 
-## Gate 0 status
+## Implementation status
 
-This repository is the Gate 0 baseline. It contains the frozen schema contracts, CI pipeline, offline Docker build, and documentation skeleton required before runtime parsing features are added.
+Gate 0 is frozen. Gate 1 now provides YAML-driven parsing for the four checked-in formats, append-only compressed raw retention, schema-validated envelopes, quarantine, Parquet output, DuckDB queries, and CLI lineage verification.
 
-The current code is intentionally minimal and includes explicit STUB markers where later gates will add behavior.
+Remaining work is explicitly marked STUB until its gate is implemented:
+
+- STUB: Gate 2 parser learning, field inference, OCSF mapping, YAML emission, and review workflow.
+- STUB: Gate 3 verification reports, parser state machine, and benchmark command.
+- STUB: Gate 4 drift monitoring, export formats, FastAPI service, Streamlit UI, and airgap test.
 
 ## Product scope
 
@@ -96,4 +100,4 @@ These are baseline contracts for the rest of the system and should not be change
 
 ## Notes
 
-This repository is structured for the Gate 0 baseline and is not yet the fully implemented runtime system described in later gates. Each later gate will add working logic behind the frozen contracts.
+Frozen schemas remain the contracts for all later gates. The STUB list above is the current implementation boundary; benchmark and accuracy results will be documented only after real runs.
