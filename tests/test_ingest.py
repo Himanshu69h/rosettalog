@@ -45,6 +45,7 @@ def test_ingest_known_format_produces_traceable_envelope(
     assert envelope["raw_sha256"] == hashlib.sha256(raw).hexdigest()
     assert envelope["source"]["byte_offset"] == 0
     assert envelope["event"]["action"]
+    assert envelope["flags"]["masked"] is False
     assert (store.root / "events.jsonl").exists()
 
 

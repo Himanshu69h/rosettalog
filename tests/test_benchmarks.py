@@ -29,8 +29,10 @@ def test_benchmark_measures_parser_and_writes_report(tmp_path: Path) -> None:
     assert result.coverage == 1.0
     assert result.elapsed_seconds > 0
     assert result.records_per_second > 0
+    report_contents = report_path.read_text(encoding="utf-8")
+    assert "not an end-to-end pipeline benchmark" in report_contents
     assert json.loads(
-        report_path.read_text(encoding="utf-8").split("```json\n", 1)[1].split("\n```", 1)[0]
+        report_contents.split("```json\n", 1)[1].split("\n```", 1)[0]
     )["records_per_second"] > 0
 
 

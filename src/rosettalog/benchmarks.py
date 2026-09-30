@@ -85,6 +85,10 @@ def write_benchmark_report(result: BenchmarkResult, output_path: Path) -> None:
     output_path.write_text(
         "# RosettaLog benchmark\n\n"
         "Measured parser throughput for this invocation; this is not a scale extrapolation.\n\n"
+        "The input file and parser registry are loaded before timing. The timer "
+        "covers repeated `ParserRegistry.parse` calls only; it excludes ingestion, "
+        "raw storage, envelope validation, Parquet, and file I/O. This is not an "
+        "end-to-end pipeline benchmark.\n\n"
         "```json\n"
         f"{payload}\n"
         "```\n",

@@ -3,7 +3,9 @@
 ## Default decisions for Gate 0
 
 - OCSF alignment is intentionally a subset rather than full OCSF compliance.
-- The normalized copy may be masked; the raw store is never modified.
+- The normalized copy may be masked in a future policy stage; current ingestion
+  does not redact values and sets `flags.masked` to false. The raw store is never
+  modified.
 - `unmapped` is the retention mechanism for vendor-specific fields.
 - RE2 is the default matching engine for untrusted patterns.
 - The project is intentionally offline and deterministic by design.

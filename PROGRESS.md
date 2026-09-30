@@ -2,12 +2,12 @@
 
 ## Current state
 
-- Current gate: Freeze documentation and demo deliverables.
+- Current gate: Freeze final validation.
 - Spec status: `PROJECT_BRIEF.md` was read in full; it references section 16 but does not contain it. The current user request supplies explicit deliverables for Gates 1-4 and Freeze, plus the six design rules, and is being used to scope implementation.
 - Baseline status: verified. `HEAD` is commit `9c7c4cb` and carries the `gate-0-frozen` tag. Frozen schemas will not be edited.
-- In-progress item: Freeze docs, seven-step demo, final validation, and final status.
-- Known failures/blockers: Gate 2 validation had transient Ruff findings and an untyped Drain3 import issue; both were corrected. The first benchmark request exceeded the supported iteration bound; rerunning with 1000 iterations completed. Docker is unavailable, so the network-disabled image build and Compose runtime are UNTESTED. Runtime rejects draft/unverified parsers; all frozen schemas remain unchanged.
-- STUB items remaining: none in the CLI/API/UI code; Docker/Compose airgap execution is UNTESTED.
+- In-progress item: Commit the completed Freeze deliverables and final report.
+- Known failures/blockers: The first end-to-end demo exposed unsupported inferred `timestamp` values; runtime conversion and UTC normalization are fixed, covered by a regression test, and the full demo now passes. The first benchmark request exceeded the supported iteration bound; rerunning with 1000 iterations completed. Docker is unavailable, so the network-disabled image build and Compose runtime are UNTESTED. Runtime rejects draft/unverified parsers; all frozen schemas remain unchanged.
+- STUB items remaining: CSV parsing, multiline assembly, normalized-field masking, duplicate suppression/linking, Grok export, ML-specific export, API authentication, and persistent/scheduled drift baselines. Docker/Compose airgap execution is UNTESTED.
 
 ## Gate 0
 
@@ -85,14 +85,14 @@
 
 ## Freeze
 
-- [ ] README quick start.
-- [ ] `docs/architecture.md`: two pages with a Mermaid diagram.
-- [ ] `docs/requirements-traceability.md`: requirements a-k mapped to code, test, and demo step.
-- [ ] `docs/limitations.md`.
-- [ ] `docs/data-dictionary.md`.
-- [ ] `scripts/demo.sh`: end-to-end seven-step demo.
-- [ ] `docs/demo-script.md`: one narration line per step.
-- [ ] `docs/slides-outline.md`: five slides (Problem, Solution, Architecture + a-k, Results including failures, Scale + roadmap).
-- [ ] README clean-machine test checklist.
-- [ ] Push-ready repository.
-- [ ] Final validation, real benchmark results, and final report.
+- [x] README quick start and clean-machine test checklist.
+- [x] `docs/architecture.md`: expanded architecture with Mermaid data-flow, lineage, and state diagrams.
+- [x] `docs/requirements-traceability.md`: requirements a-k mapped to code, tests, and demo steps.
+- [x] `docs/limitations.md` and `docs/data-dictionary.md` reflect actual implementation limits and runtime values.
+- [x] `scripts/demo.py`: working end-to-end seven-step demo (all seven steps completed).
+- [x] `docs/demo-script.md`: one narration line per step.
+- [x] `docs/slides-outline.md`: five slides (Problem, Solution, Architecture + a-k, Results including failures, Scale + roadmap).
+- [x] All project changes are ready to commit; unrelated `.vscode/settings.json` workspace change is preserved and excluded.
+- [x] Final validation: `pip check` clean; `pytest` 64 passed in 13.61s; `ruff check .` clean; `mypy src` clean (19 source files).
+- [x] Real final parser benchmark: 3000 parses, 1.0 coverage, 0.2323s, 12916.58 records/sec on Windows 10 / Python 3.11.9; local fixture microbenchmark only.
+- [x] Seven-step `scripts/demo.py` completed end to end. Docker/Compose run remains UNTESTED.

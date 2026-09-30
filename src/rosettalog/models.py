@@ -20,7 +20,7 @@ class EventFlags(BaseModel):
     duplicate_of: str | None = None
     duplicate_count: int = 0
     tz_assumed: bool = False
-    masked: bool = True
+    masked: bool = False
 
 
 class Envelope(BaseModel):

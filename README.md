@@ -9,7 +9,6 @@ Gate 0 is frozen. Gate 1 provides YAML-driven parsing for the four checked-in fo
 The Gate 4 Docker/Compose and network-disabled test path are implemented but
 **UNTESTED** because Docker is unavailable in the current environment.
 
-
 ## Product scope
 
 - In scope: firewalls, routers, IDS/IPS, VPN appliances, proxies
@@ -64,19 +63,21 @@ rosettalog/
 └── wheels/
 ```
 
-## Quick start
+## Quick start (Windows PowerShell)
 
-```bash
-make vendor
-python -m pytest -q
-python -m mypy src
-python -m ruff check .
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -e ".[dev,api,ui]"
+.\.venv\Scripts\python.exe -m pip check
+.\.venv\Scripts\python.exe -m pytest
+.\.venv\Scripts\ruff.exe check .
+.\.venv\Scripts\mypy.exe src
 ```
 
-Or with Docker:
+Run the seven-step local demo:
 
-```bash
-docker compose build
+```powershell
+.\.venv\Scripts\python.exe scripts\demo.py
 ```
 
 The parser lifecycle commands are `rosetta learn`, `rosetta verify`, and
@@ -84,18 +85,46 @@ The parser lifecycle commands are `rosetta learn`, `rosetta verify`, and
 described in [docs/parser-verification.md](./docs/parser-verification.md).
 Drift monitoring and export commands, plus the API/UI service, are described in
 [docs/monitoring-export-api.md](./docs/monitoring-export-api.md).
+Start the local API or UI directly:
+
+```powershell
+.\.venv\Scripts\python.exe -m uvicorn rosettalog.api.app:app --host 127.0.0.1 --port 8000
+.\.venv\Scripts\python.exe -m streamlit run src\rosettalog\ui\streamlit_app.py
+```
+
 Capture a local parser-throughput measurement with:
 
 ```powershell
-python -m rosettalog bench samples\known\asa.log --report docs\benchmarks.md
+.\.venv\Scripts\python.exe -m rosettalog bench samples\known\asa.log --report docs\benchmarks.md
 ```
+
+## Clean-machine test checklist
+
+1. Use a clean Windows x86_64 machine with Python 3.11 and Docker Desktop. Confirm
+   that no `.env` credentials or prior `data` are needed.
+2. Create the project environment and install the declared test/service extras
+   using the Quick start commands. Run `pip check`, `pytest`, Ruff, and mypy.
+3. On a connected preparation machine, cache the `python:3.11-slim` base image
+   and prepare Linux x86_64 wheels with
+   `.\scripts\test-airgap.ps1 -PrepareWheels`.
+4. Transfer the repository and `wheels` directory to the clean machine, disable
+   external networking, and run `.\scripts\test-airgap.ps1`. The image build
+   uses `--network none`; Compose uses an internal-only network and loopback
+   published ports. Docker execution has not been verified in this workspace.
+5. Run `.\.venv\Scripts\python.exe scripts\demo.py`; verify the generated
+   `events.ndjson`, `events.cef`, `events.syslog`, rawstore, verification
+   report, and draft re-learn proposal in its printed output directory.
+6. Open `http://127.0.0.1:8501` for the UI and `http://127.0.0.1:8000/docs`
+   for the local API while Compose is up. Stop with
+   `docker compose down`; the named application data volume is retained.
 
 ## Security and compliance choices
 
 - Raw bytes are kept unchanged in an append-only store.
-- Normalized copies may be masked according to configurable rules.
+- Normalized-field masking is not implemented; events correctly set `flags.masked` to false.
 - Vendor-specific fields are retained in `unmapped` rather than silently discarded.
-- No outbound network is required; the design is deterministic and offline.
+- No outbound network is required by the application at runtime; offline image
+  builds require a pre-populated Linux wheelhouse and cached base image.
 
 ## Gate 0 freeze
 
@@ -109,6 +138,7 @@ These are baseline contracts for the rest of the system and should not be change
 
 ## Notes
 
-Frozen schemas remain the contracts for all later gates. Benchmark measurements
-are local runs on the named fixture and must not be interpreted as billion-event
-scale results.
+Frozen schemas remain the contracts for all later gates. CSV parsing, duplicate
+suppression, normalized masking, Grok export, and billion-event-scale testing
+are not implemented. Benchmark measurements are local runs on the named fixture
+and must not be interpreted as billion-event scale results.

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from datetime import datetime
 from ipaddress import IPv4Address
 from pathlib import Path
 from typing import Any
@@ -113,6 +114,17 @@ class ParserRegistry:
             if isinstance(value, bool) or not isinstance(value, (int, str)):
                 raise ValueError("integer fields must be strings or integers")
             return int(value)
+        if field_type == "timestamp":
+            if not isinstance(value, str):
+                raise ValueError("timestamp fields must be strings")
+            try:
+                datetime.fromisoformat(value.replace("Z", "+00:00"))
+            except ValueError:
+                try:
+                    datetime.strptime(value, "%H:%M:%S")
+                except ValueError as error:
+                    raise ValueError(f"invalid timestamp value: {value}") from error
+            return value
         if field_type in {"enum", "free_text"}:
             if not isinstance(value, str):
                 raise ValueError(f"{field_type} fields must be strings")

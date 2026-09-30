@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
 import yaml
 
+from rosettalog.ingest import Ingestor
 from rosettalog.learning import ParserLearner, ReviewList, SynonymMapper, YamlEmitter
 from rosettalog.parsing import ParserRegistry
+from rosettalog.rawstore import RawStore
 from rosettalog.regex import compile_pattern
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -92,6 +95,41 @@ def test_mapper_uses_normalized_synonyms() -> None:
     assert mapper.map_name("src_ip") == "event.src_endpoint.ip"
     assert mapper.map_name("Action_Name") == "event.action"
     assert mapper.map_name("severity_id") == "event.severity"
+
+
+def test_inferred_timestamp_executes_and_normalizes_with_unmapped_date(
+    tmp_path: Path,
+) -> None:
+    source = ROOT / "samples" / "known" / "fortigate.log"
+    records = source.read_text(encoding="utf-8").splitlines()
+    definition = _learner().learn(records, name="timestamp_candidate").definition
+    definition["state"] = "verified"
+    parser_dir = tmp_path / "parsers"
+    parser_dir.mkdir()
+    (parser_dir / "timestamp_candidate.yaml").write_text(
+        yaml.safe_dump(definition, sort_keys=False), encoding="utf-8"
+    )
+    parser_schema = ROOT / "schemas" / "parser.schema.json"
+    registry = ParserRegistry(parser_dir, parser_schema)
+    parsed = registry.parse(records[0])
+    assert parsed is not None
+    assert parsed.fields["event"]["time"] == "08:15:00"
+
+    input_file = tmp_path / "input.log"
+    input_file.write_text("\n".join(records) + "\n", encoding="utf-8")
+    ingestor = Ingestor(
+        RawStore(tmp_path / "raw"),
+        registry,
+        envelope_schema_path=ROOT / "schemas" / "envelope.schema.json",
+    )
+    report = ingestor.ingest_file(
+        input_file,
+        ingest_time=datetime(2026, 9, 30, 12, 0, tzinfo=timezone.utc),
+    )
+
+    assert len(report.events) == 2
+    assert report.events[0]["event"]["time"] == "2026-09-29T08:15:00Z"
+    assert report.events[0]["flags"]["tz_assumed"] is True
 
 
 def test_emitter_refuses_non_draft_parser(tmp_path: Path) -> None:

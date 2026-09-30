@@ -235,12 +235,13 @@ class Ingestor:
                 "duplicate_of": None,
                 "duplicate_count": 0,
                 "tz_assumed": tz_assumed,
-                "masked": True,
+                "masked": False,
             },
         }
 
     def _event_time(self, parsed: ParsedLine, ingest_time: datetime) -> tuple[datetime, bool, str]:
         unmapped = parsed.unmapped
+        date_value = unmapped.get("date")
         raw_time = unmapped.get("time")
         if isinstance(raw_time, str):
             try:
@@ -248,27 +249,78 @@ class Ingestor:
             except ValueError:
                 parsed_time = None
             if parsed_time is not None:
-                if parsed_time.tzinfo is None:
-                    return (
-                        parsed_time.replace(tzinfo=ZoneInfo(self.default_timezone)),
-                        True,
-                        "event",
-                    )
-                return parsed_time.astimezone(timezone.utc), False, "event"
+                return self._normalize_event_time(parsed_time)
 
-        date_value = unmapped.get("date")
         clock_value = unmapped.get("time")
         if isinstance(date_value, str) and isinstance(clock_value, str):
-            parsed_time = datetime.strptime(f"{date_value} {clock_value}", "%Y-%m-%d %H:%M:%S")
-            return parsed_time.replace(tzinfo=ZoneInfo(self.default_timezone)), True, "event"
+            try:
+                parsed_time = datetime.strptime(
+                    f"{date_value} {clock_value}", "%Y-%m-%d %H:%M:%S"
+                )
+            except ValueError:
+                parsed_time = None
+            if parsed_time is not None:
+                return self._normalize_event_time(parsed_time)
 
         syslog_time = unmapped.get("ts")
         if isinstance(syslog_time, str):
-            parsed_time = datetime.strptime(syslog_time, "%b %d %H:%M:%S")
-            parsed_time = parsed_time.replace(year=ingest_time.year)
-            return parsed_time.replace(tzinfo=ZoneInfo(self.default_timezone)), True, "event"
+            try:
+                parsed_time = datetime.strptime(syslog_time, "%b %d %H:%M:%S")
+                parsed_time = parsed_time.replace(year=ingest_time.year)
+            except ValueError:
+                parsed_time = None
+            if parsed_time is not None:
+                return self._normalize_event_time(parsed_time)
+
+        mapped_event = parsed.fields.get("event", {})
+        mapped_time = mapped_event.get("time") if isinstance(mapped_event, dict) else None
+        if isinstance(mapped_time, str):
+            try:
+                parsed_time = datetime.fromisoformat(mapped_time.replace("Z", "+00:00"))
+            except ValueError:
+                parsed_time = None
+            if parsed_time is not None:
+                return self._normalize_event_time(parsed_time)
+            if isinstance(date_value, str):
+                try:
+                    parsed_time = datetime.strptime(
+                        f"{date_value} {mapped_time}", "%Y-%m-%d %H:%M:%S"
+                    )
+                except ValueError:
+                    parsed_time = None
+                if parsed_time is not None:
+                    return self._normalize_event_time(parsed_time)
+            try:
+                parsed_clock = datetime.strptime(mapped_time, "%H:%M:%S")
+            except ValueError:
+                parsed_clock = None
+            if parsed_clock is not None:
+                try:
+                    event_date = (
+                        datetime.strptime(date_value, "%Y-%m-%d").date()
+                        if isinstance(date_value, str)
+                        else ingest_time.date()
+                    )
+                except ValueError:
+                    event_date = ingest_time.date()
+                combined = datetime.combine(event_date, parsed_clock.time())
+                return self._normalize_event_time(combined)
+            try:
+                parsed_date = datetime.strptime(mapped_time, "%Y-%m-%d")
+            except ValueError:
+                parsed_date = None
+            if parsed_date is not None:
+                return self._normalize_event_time(parsed_date)
 
         return ingest_time, True, "ingest_fallback"
+
+    def _normalize_event_time(
+        self, event_time: datetime
+    ) -> tuple[datetime, bool, str]:
+        tz_assumed = event_time.tzinfo is None
+        if tz_assumed:
+            event_time = event_time.replace(tzinfo=ZoneInfo(self.default_timezone))
+        return event_time.astimezone(timezone.utc), tz_assumed, "event"
 
     def _quarantine(
         self,
