@@ -1,0 +1,16 @@
+.git
+.venv
+__pycache__
+*.py[cod]
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.hypothesis
+.coverage
+data
+raw_store
+parquet
+draft_parsers
+monitor_reports
+verification_reports
+review_queue.jsonl

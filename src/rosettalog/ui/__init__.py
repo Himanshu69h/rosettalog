@@ -1,1 +1,1 @@
-"""Streamlit UI stubs for the Gate 0 baseline."""
+"""Streamlit UI for RosettaLog."""

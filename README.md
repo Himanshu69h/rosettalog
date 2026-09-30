@@ -4,11 +4,11 @@ RosettaLog is an air-gapped, containerized framework that converts perimeter-net
 
 ## Implementation status
 
-Gate 0 is frozen. Gate 1 provides YAML-driven parsing for the four checked-in formats, append-only compressed raw retention, schema-validated envelopes, quarantine, Parquet output, DuckDB queries, and CLI lineage verification. Gate 2 adds offline parser learning, field inference, OCSF alias mapping, draft YAML emission, and a review queue. Gate 3 adds labeled-fixture verification, report-bound parser activation, JSON/HTML reports, and measured parser benchmarks.
+Gate 0 is frozen. Gate 1 provides YAML-driven parsing for the four checked-in formats, append-only compressed raw retention, schema-validated envelopes, quarantine, Parquet output, DuckDB queries, and CLI lineage verification. Gate 2 adds offline parser learning, field inference, OCSF alias mapping, draft YAML emission, and a review queue. Gate 3 adds labeled-fixture verification, report-bound parser activation, JSON/HTML reports, and measured parser benchmarks. Gate 4 adds drift monitoring with draft re-learn proposals, lossless-envelope NDJSON/CEF/syslog export, a FastAPI service, and a Streamlit UI.
 
-Remaining work is explicitly marked STUB until its gate is implemented:
+The Gate 4 Docker/Compose and network-disabled test path are implemented but
+**UNTESTED** because Docker is unavailable in the current environment.
 
-- STUB: Gate 4 drift monitoring, export formats, FastAPI service, Streamlit UI, and network-disabled container test.
 
 ## Product scope
 
@@ -82,6 +82,8 @@ docker compose build
 The parser lifecycle commands are `rosetta learn`, `rosetta verify`, and
 `rosetta activate`. Verification fixture format and state transitions are
 described in [docs/parser-verification.md](./docs/parser-verification.md).
+Drift monitoring and export commands, plus the API/UI service, are described in
+[docs/monitoring-export-api.md](./docs/monitoring-export-api.md).
 Capture a local parser-throughput measurement with:
 
 ```powershell

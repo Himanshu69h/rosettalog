@@ -2,12 +2,12 @@
 
 ## Current state
 
-- Current gate: Gate 4 implementation.
+- Current gate: Freeze documentation and demo deliverables.
 - Spec status: `PROJECT_BRIEF.md` was read in full; it references section 16 but does not contain it. The current user request supplies explicit deliverables for Gates 1-4 and Freeze, plus the six design rules, and is being used to scope implementation.
 - Baseline status: verified. `HEAD` is commit `9c7c4cb` and carries the `gate-0-frozen` tag. Frozen schemas will not be edited.
-- In-progress item: Gate 4 drift monitoring, export, service, UI, and offline container path.
-- Known failures/blockers: Gate 2 validation had transient Ruff findings and an untyped Drain3 import issue; both were corrected. The first benchmark request exceeded the supported iteration bound; rerunning with 1000 iterations completed. Runtime rejects draft/unverified parsers; all frozen schemas remain unchanged.
-- STUB items remaining: Gate 4 drift monitor/export/API/UI/airgap test.
+- In-progress item: Freeze docs, seven-step demo, final validation, and final status.
+- Known failures/blockers: Gate 2 validation had transient Ruff findings and an untyped Drain3 import issue; both were corrected. The first benchmark request exceeded the supported iteration bound; rerunning with 1000 iterations completed. Docker is unavailable, so the network-disabled image build and Compose runtime are UNTESTED. Runtime rejects draft/unverified parsers; all frozen schemas remain unchanged.
+- STUB items remaining: none in the CLI/API/UI code; Docker/Compose airgap execution is UNTESTED.
 
 ## Gate 0
 
@@ -73,14 +73,15 @@
 
 ## Gate 4
 
-- [ ] Monitor and drift detection with re-learn proposal.
-- [ ] NDJSON and CEF/syslog export.
-- [ ] FastAPI service.
-- [ ] Thin Streamlit UI.
-- [ ] Docker Compose workflow.
-- [ ] Airgap test script and test with network disabled (mark UNTESTED if Docker is unavailable).
-- [ ] Gate 4 tests and ordered validation from the authoritative brief.
-- [ ] Commit `Gate 4: <summary>` and tag `gate-4-done` after a green validation run.
+- [x] Monitor coverage/confidence drift, mark active parser drifting, and emit a reviewable draft re-learn proposal.
+- [x] Validated NDJSON, CEF, and RFC 5424 syslog export retain a complete Base64 envelope.
+- [x] FastAPI health, parser inventory, bounded upload/ingest, and recent-events endpoints.
+- [x] Streamlit UI for upload, parser list, and recent events.
+- [x] Dockerfile, internal-only Compose network, loopback ports, and Linux x86_64 wheelhouse workflow.
+- [x] PowerShell airgap test script parses successfully.
+- [ ] Docker/Compose build and network-disabled runtime test: **UNTESTED**, Docker CLI is unavailable.
+- [x] Full Gate 4 validation: `pip check` clean; `pytest` 63 passed in 10.91s; `ruff check .` clean; `mypy src` clean (19 source files).
+- [x] Commit `Gate 4: monitor, exports, local API, and UI`; tag `gate-4-done`.
 
 ## Freeze
 

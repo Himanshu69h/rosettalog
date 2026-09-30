@@ -1,41 +1,76 @@
-version: "3.9"
-
 services:
-  rosetta:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: rosetta-gate0
-    volumes:
-      - .:/app
-      - ./wheels:/wheels
-    working_dir: /app
-    command: ["python", "-m", "rosettalog.cli", "--help"]
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 20s
-
   api:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: rosetta-api
-    command: ["python", "-m", "uvicorn", "rosettalog.api.app:app", "--host", "0.0.0.0", "--port", "8000"]
+      network: none
+    command:
+      - python
+      - -m
+      - uvicorn
+      - rosettalog.api.app:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+    environment:
+      ROSETTALOG_DATA_DIR: /data
+      ROSETTALOG_PARSER_DIR: /app/parsers
+      ROSETTALOG_PARSER_SCHEMA: /app/schemas/parser.schema.json
+      ROSETTALOG_ENVELOPE_SCHEMA: /app/schemas/envelope.schema.json
     ports:
-      - "8000:8000"
-    depends_on:
-      - rosetta
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - rosettalog-data:/data
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3).read()"
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
 
   ui:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: rosetta-ui
-    command: ["python", "-m", "streamlit", "run", "src/rosettalog/ui/streamlit_app.py", "--server.port", "8501", "--server.address", "0.0.0.0"]
+      network: none
+    command:
+      - python
+      - -m
+      - streamlit
+      - run
+      - src/rosettalog/ui/streamlit_app.py
+      - --server.port
+      - "8501"
+      - --server.address
+      - 0.0.0.0
+      - --browser.gatherUsageStats
+      - "false"
+    environment:
+      ROSETTALOG_API_URL: http://api:8000
     ports:
-      - "8501:8501"
+      - "127.0.0.1:8501:8501"
     depends_on:
-      - api
+      api:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://localhost:8501/_stcore/health', timeout=3).read()"
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+networks:
+  default:
+    internal: true
+
+volumes:
+  rosettalog-data:

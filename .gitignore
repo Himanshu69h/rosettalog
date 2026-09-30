@@ -11,6 +11,9 @@ node_modules/
 .ruff_cache/
 .pytest_cache/
 wheels/
+!wheels/
+wheels/*
+!wheels/.gitkeep
 data/
 raw_store/
 parquet/

@@ -3,15 +3,17 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import typer
 from jsonschema import FormatChecker, ValidationError, validate
 
 from rosettalog.analytics import ParquetSink, query_events
 from rosettalog.benchmarks import run_benchmark, write_benchmark_report
+from rosettalog.exports import export_events
 from rosettalog.ingest import Ingestor
 from rosettalog.learning import ParserLearner, ReviewList, YamlEmitter
+from rosettalog.monitoring import monitor_file
 from rosettalog.parsing import ParserRegistry
 from rosettalog.rawstore import RawStore, RawStoreError
 from rosettalog.verification import ParserVerifier, transition_parser
@@ -160,6 +162,62 @@ def bench(
         typer.echo(str(error), err=True)
         raise typer.Exit(code=1) from error
     typer.echo(json.dumps({**result.as_dict(), "report": str(report)}, sort_keys=True))
+
+
+@app.command()
+def monitor(
+    input_file: Path,
+    parser_name: str,
+    parser_dir: Path = typer.Option(Path("parsers"), "--parsers"),
+    parser_schema: Path = typer.Option(Path("schemas/parser.schema.json"), "--parser-schema"),
+    synonyms: Path = typer.Option(Path("schemas/synonyms.yaml"), "--synonyms"),
+    output_dir: Path = typer.Option(Path("monitor_reports"), "--output"),
+    draft_dir: Path = typer.Option(Path("draft_parsers"), "--drafts"),
+    review_list: Path = typer.Option(Path("review_queue.jsonl"), "--review-list"),
+    min_coverage: float = typer.Option(0.9, min=0.0, max=1.0),
+) -> None:
+    """Monitor parser coverage and create a draft re-learn proposal on drift."""
+    try:
+        report = monitor_file(
+            input_file,
+            parser_name,
+            parser_dir,
+            parser_schema,
+            synonyms,
+            output_dir=output_dir,
+            draft_dir=draft_dir,
+            review_list_path=review_list,
+            min_coverage=min_coverage,
+        )
+    except (OSError, UnicodeDecodeError, ValueError, ValidationError) as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(code=1) from error
+    typer.echo(json.dumps(report.as_dict(), sort_keys=True))
+
+
+@app.command()
+def export(
+    event_file: Path,
+    output_file: Path,
+    output_format: Literal["ndjson", "cef", "syslog"] = typer.Option(
+        "ndjson", "--format"
+    ),
+    envelope_schema: Path = typer.Option(
+        Path("schemas/envelope.schema.json"), "--envelope-schema"
+    ),
+) -> None:
+    """Export verified event envelopes as NDJSON, CEF, or RFC 5424 syslog."""
+    try:
+        count = export_events(event_file, output_file, envelope_schema, output_format)
+    except (OSError, UnicodeDecodeError, ValueError, ValidationError) as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(code=1) from error
+    typer.echo(
+        json.dumps(
+            {"events_exported": count, "format": output_format, "output_file": str(output_file)},
+            sort_keys=True,
+        )
+    )
 
 
 @app.command()
