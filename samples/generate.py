@@ -7,8 +7,10 @@ validation, and benchmarking work.
 
 from __future__ import annotations
 
+import argparse
 import json
 import random
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 SEED = 2026
@@ -104,11 +106,90 @@ def generate_samples(output_dir: Path | None = None, *, seed: int = SEED) -> lis
     return generated
 
 
-def main() -> None:
-    root = Path(__file__).resolve().parent / 'known'
-    generate_samples(root)
+def generate_benchmark_samples(
+    output_dir: Path | None = None,
+    *,
+    records_per_format: int = 100_000,
+    seed: int = SEED,
+) -> list[Path]:
+    if not 1 <= records_per_format <= 1_000_000:
+        raise ValueError("records_per_format must be between 1 and 1000000")
+    root = output_dir or Path(__file__).resolve().parent / "benchmark"
+    root.mkdir(parents=True, exist_ok=True)
+    randomizer = random.Random(seed)
+    generated: list[Path] = []
+    start_time = datetime(2026, 9, 29, tzinfo=timezone.utc)
 
-    print(f"Wrote synthetic samples to {root}")
+    def address(index: int, *, public: bool = False) -> str:
+        third = (index // 254) % 256
+        fourth = index % 254 + 1
+        if public:
+            return f"198.51.{third}.{fourth}"
+        second = (index // (254 * 256)) % 256
+        return f"10.{second}.{third}.{fourth}"
+
+    writers = {
+        "asa.log": lambda index: (
+            f"{(start_time + timedelta(seconds=index)).strftime('%b %d %H:%M:%S')} "
+            f"fw01 %ASA-4-106023: {('Deny' if index % 2 == 0 else 'Allow')} "
+            f"{('tcp' if index % 2 == 0 else 'udp')} src {address(index)}/"
+            f"{randomizer.randint(1, 65535)} "
+            f"dst {address(index, public=True)}/{randomizer.randint(1, 65535)} "
+            'by access-group "BENCHMARK"'
+        ),
+        "fortigate.log": lambda index: (
+            f"date={(start_time + timedelta(seconds=index)).strftime('%Y-%m-%d')} "
+            f"time={(start_time + timedelta(seconds=index)).strftime('%H:%M:%S')} "
+            f"log_id=000000001 action={('deny' if index % 2 == 0 else 'accept')} "
+            f"srcip={address(index)} dstip={address(index, public=True)} "
+            f"proto={('tcp' if index % 2 == 0 else 'udp')} "
+            f"srcport={randomizer.randint(1, 65535)} dstport={randomizer.randint(1, 65535)}"
+        ),
+        "cef.log": lambda index: (
+            f"CEF:0|Cisco|ASA|9.12|106023|{('Deny' if index % 2 == 0 else 'Accept')}|5|"
+            f"src={address(index)} dst={address(index, public=True)} "
+            f"proto={('tcp' if index % 2 == 0 else 'udp')} "
+            f"spt={randomizer.randint(1, 65535)} dpt={randomizer.randint(1, 65535)} "
+            f"msg=synthetic-{index}"
+        ),
+        "json.log": lambda index: json.dumps(
+            {
+                "time": (start_time + timedelta(seconds=index)).isoformat().replace("+00:00", "Z"),
+                "src_ip": address(index),
+                "dst_ip": address(index, public=True),
+                "action": "deny" if index % 2 == 0 else "accept",
+                "protocol": "tcp" if index % 2 == 0 else "udp",
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+        ),
+    }
+    for name, make_record in writers.items():
+        output = root / name
+        with output.open("w", encoding="utf-8", newline="\n") as stream:
+            for index in range(records_per_format):
+                stream.write(make_record(index))
+                stream.write("\n")
+        generated.append(output)
+    return generated
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Generate deterministic synthetic log samples.")
+    parser.add_argument(
+        "--output-dir", type=Path, default=Path(__file__).resolve().parent / "benchmark"
+    )
+    parser.add_argument("--records-per-format", type=int, default=100_000)
+    parser.add_argument("--seed", type=int, default=SEED)
+    arguments = parser.parse_args()
+    paths = generate_benchmark_samples(
+        arguments.output_dir,
+        records_per_format=arguments.records_per_format,
+        seed=arguments.seed,
+    )
+    print(f"Wrote {arguments.records_per_format} records per format to {arguments.output_dir}")
+    for path in paths:
+        print(path)
 
 
 if __name__ == '__main__':

@@ -9,7 +9,12 @@ import typer
 from jsonschema import FormatChecker, ValidationError, validate
 
 from rosettalog.analytics import ParquetSink, query_events
-from rosettalog.benchmarks import run_benchmark, write_benchmark_report
+from rosettalog.benchmarks import (
+    run_benchmark,
+    run_pipeline_benchmark,
+    write_benchmark_report,
+    write_pipeline_benchmark_report,
+)
 from rosettalog.exports import export_events
 from rosettalog.ingest import Ingestor
 from rosettalog.learning import ParserLearner, ReviewList, YamlEmitter
@@ -148,20 +153,36 @@ def bench(
     parser_schema: Path = typer.Option(Path("schemas/parser.schema.json"), "--parser-schema"),
     report: Path = typer.Option(Path("docs/benchmarks.md"), "--report"),
     iterations: int = typer.Option(1, min=1, max=1000),
+    micro: bool = typer.Option(False, "--micro", help="Run parser-only microbenchmark."),
+    envelope_schema: Path = typer.Option(
+        Path("schemas/envelope.schema.json"), "--envelope-schema"
+    ),
 ) -> None:
-    """Measure parser throughput on a local input file and write a report."""
+    """Measure end-to-end ingestion and Parquet throughput, or parser-only with --micro."""
+    result_data: dict[str, str | int | float]
     try:
-        result = run_benchmark(
-            input_file,
-            parser_dir,
-            parser_schema,
-            iterations=iterations,
-        )
-        write_benchmark_report(result, report)
+        if micro:
+            micro_result = run_benchmark(
+                input_file,
+                parser_dir,
+                parser_schema,
+                iterations=iterations,
+            )
+            write_benchmark_report(micro_result, report)
+            result_data = micro_result.as_dict()
+        else:
+            pipeline_result = run_pipeline_benchmark(
+                input_file,
+                parser_dir,
+                parser_schema,
+                envelope_schema,
+            )
+            write_pipeline_benchmark_report(pipeline_result, report)
+            result_data = pipeline_result.as_dict()
     except (OSError, UnicodeDecodeError, ValueError, ValidationError) as error:
         typer.echo(str(error), err=True)
         raise typer.Exit(code=1) from error
-    typer.echo(json.dumps({**result.as_dict(), "report": str(report)}, sort_keys=True))
+    typer.echo(json.dumps({**result_data, "report": str(report)}, sort_keys=True))
 
 
 @app.command()
@@ -231,8 +252,19 @@ def run(
         Path("schemas/envelope.schema.json"), "--envelope-schema"
     ),
     max_line_bytes: int = typer.Option(65_536, min=1, max=65_536),
+    mask_ips: bool = typer.Option(False, "--mask-ips"),
+    ipv4_prefix_length: int = typer.Option(24, "--ipv4-prefix-length", min=0, max=32),
+    ipv6_prefix_length: int = typer.Option(64, "--ipv6-prefix-length", min=0, max=128),
+    hash_usernames: bool = typer.Option(False, "--hash-usernames"),
+    username_hash_salt: str = typer.Option(
+        "", "--username-hash-salt", envvar="ROSETTALOG_USERNAME_HASH_SALT", hide_input=True
+    ),
 ) -> None:
     """Ingest one file, preserving raw records and writing parsed events."""
+    if hash_usernames and not username_hash_salt:
+        raise typer.BadParameter(
+            "provide --username-hash-salt or ROSETTALOG_USERNAME_HASH_SALT"
+        )
     store = RawStore(raw_store, max_record_bytes=max_line_bytes)
     registry = ParserRegistry(parser_dir, parser_schema)
     ingestor = Ingestor(
@@ -240,6 +272,11 @@ def run(
         registry,
         envelope_schema_path=envelope_schema,
         max_line_bytes=max_line_bytes,
+        mask_ips=mask_ips,
+        ipv4_prefix_length=ipv4_prefix_length,
+        ipv6_prefix_length=ipv6_prefix_length,
+        hash_usernames=hash_usernames,
+        username_hash_salt=username_hash_salt,
     )
     report = ingestor.ingest_file(input_file)
     parquet_path = ParquetSink(parquet_root).write_events(list(report.events))

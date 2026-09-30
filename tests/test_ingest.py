@@ -49,6 +49,19 @@ def test_ingest_known_format_produces_traceable_envelope(
     assert (store.root / "events.jsonl").exists()
 
 
+def test_ip_mask_prefix_is_configurable(setup_ingestor: tuple[Ingestor, RawStore]) -> None:
+    ingestor, _ = setup_ingestor
+    ingestor.mask_ips = True
+    ingestor.ipv4_prefix_length = 16
+    envelope = {
+        "event": {"src_endpoint": {"ip": "10.40.12.7"}},
+        "unmapped": {},
+    }
+
+    assert ingestor._mask_normalized(envelope) is True
+    assert envelope["event"]["src_endpoint"]["ip"] == "10.40.0.0"
+
+
 def test_unknown_record_is_quarantined_without_losing_raw(
     setup_ingestor: tuple[Ingestor, RawStore], tmp_path: Path
 ) -> None:
@@ -95,6 +108,90 @@ def test_ingest_event_ids_and_output_are_deterministic(
 
     assert first["event_id"] == second["event_id"]
     assert first["raw_sha256"] == second["raw_sha256"]
+
+
+def test_masking_changes_only_normalized_copy_and_keeps_raw_verifiable(
+    tmp_path: Path,
+) -> None:
+    store = RawStore(tmp_path / "raw")
+    registry = ParserRegistry(ROOT / "parsers", ROOT / "schemas" / "parser.schema.json")
+    ingestor = Ingestor(
+        store,
+        registry,
+        envelope_schema_path=ROOT / "schemas" / "envelope.schema.json",
+        mask_ips=True,
+    )
+    source = tmp_path / "input.jsonl"
+    raw = (ROOT / "samples" / "known" / "json.log").read_bytes().splitlines(keepends=True)[0]
+    source.write_bytes(raw)
+
+    result = ingestor.ingest_file(source, ingest_time=FIXED_TIME)
+
+    envelope = result.events[0]
+    assert envelope["flags"]["masked"] is True
+    assert envelope["event"]["src_endpoint"]["ip"] == "10.0.0.0"
+    stored_raw = store.read(store.records()[0])
+    assert stored_raw == raw
+    assert envelope["raw"] == raw.decode("utf-8")
+    assert envelope["raw_sha256"] == hashlib.sha256(raw).hexdigest()
+
+
+def test_duplicate_events_are_linked_and_never_deleted(
+    setup_ingestor: tuple[Ingestor, RawStore], tmp_path: Path
+) -> None:
+    ingestor, _ = setup_ingestor
+    raw = (ROOT / "samples" / "known" / "json.log").read_bytes().splitlines(keepends=True)[0]
+    source = tmp_path / "duplicates.jsonl"
+    source.write_bytes(raw + raw)
+
+    result = ingestor.ingest_file(source, ingest_time=FIXED_TIME)
+
+    assert len(result.events) == 2
+    assert result.events[0]["flags"]["duplicate_of"] is None
+    assert result.events[0]["flags"]["duplicate_count"] == 0
+    assert result.events[1]["flags"]["duplicate_of"] == result.events[0]["event_id"]
+    assert result.events[1]["flags"]["duplicate_count"] == 1
+
+
+def test_username_hashing_is_configurable_and_deterministic(
+    setup_ingestor: tuple[Ingestor, RawStore],
+) -> None:
+    ingestor, _ = setup_ingestor
+    ingestor.hash_usernames = True
+    ingestor.username_hash_salt = "test-salt"
+    envelope = {
+        "event": {"user": "alice", "src_endpoint": {"ip": "10.0.0.5"}},
+        "unmapped": {},
+    }
+
+    assert ingestor._mask_normalized(envelope) is True
+    assert envelope["event"]["user"].startswith("sha256:")
+    assert envelope["event"]["user"] != "alice"
+    assert envelope["event"]["src_endpoint"]["ip"] == "10.0.0.5"
+
+
+def test_csv_header_is_detected_and_rows_are_normalized(
+    setup_ingestor: tuple[Ingestor, RawStore], tmp_path: Path
+) -> None:
+    ingestor, store = setup_ingestor
+    source = tmp_path / "events.csv"
+    source.write_text(
+        "timestamp,src_ip,dst_ip,action,protocol,username,vendor_code\n"
+        "2026-09-29T08:15:00Z,10.0.0.5,203.0.113.4,deny,tcp,alice,edge-a\n"
+        "2026-09-29T08:15:01Z,10.0.0.6,203.0.113.5,accept,udp,bob,edge-b\n",
+        encoding="utf-8",
+    )
+
+    result = ingestor.ingest_file(source, ingest_time=FIXED_TIME)
+
+    assert result.records_seen == 3
+    assert len(result.events) == 2
+    assert not result.quarantined
+    assert result.events[0]["event"]["src_endpoint"]["ip"] == "10.0.0.5"
+    assert result.events[0]["event"]["user_name"] == "alice"
+    assert result.events[0]["unmapped"]["vendor_code"] == "edge-a"
+    assert len(store.records()) == 3
+    assert store.read(store.records()[0]).startswith(b"timestamp,src_ip")
 
 
 def test_adversarial_records_are_quarantined_and_retained(

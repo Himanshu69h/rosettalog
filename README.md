@@ -4,7 +4,7 @@ RosettaLog is an air-gapped, containerized framework that converts perimeter-net
 
 ## Implementation status
 
-Gate 0 is frozen. Gate 1 provides YAML-driven parsing for the four checked-in formats, append-only compressed raw retention, schema-validated envelopes, quarantine, Parquet output, DuckDB queries, and CLI lineage verification. Gate 2 adds offline parser learning, field inference, OCSF alias mapping, draft YAML emission, and a review queue. Gate 3 adds labeled-fixture verification, report-bound parser activation, JSON/HTML reports, and measured parser benchmarks. Gate 4 adds drift monitoring with draft re-learn proposals, lossless-envelope NDJSON/CEF/syslog export, a FastAPI service, and a Streamlit UI.
+Gate 0 is frozen. Gate 1 provides YAML-driven parsing for four checked-in formats plus header-based CSV parsing, append-only compressed raw retention, schema-validated envelopes, quarantine, Parquet output, DuckDB queries, and CLI lineage verification. Gate 2 adds offline parser learning, field inference, OCSF alias mapping, draft YAML emission, and a review queue. Gate 3 adds labeled-fixture verification, report-bound parser activation, JSON/HTML reports, and benchmark commands. Gate 4 adds drift monitoring with draft re-learn proposals, lossless-envelope NDJSON/CEF/syslog export, a FastAPI service, and a Streamlit UI. Hardening adds opt-in normalized IP/username masking and duplicate linkage without deleting events.
 
 The Gate 4 Docker/Compose and network-disabled test path are implemented but
 **UNTESTED** because Docker is unavailable in the current environment.
@@ -12,7 +12,7 @@ The Gate 4 Docker/Compose and network-disabled test path are implemented but
 ## Product scope
 
 - In scope: firewalls, routers, IDS/IPS, VPN appliances, proxies
-- Formats: syslog, key/value, CSV, JSON, CEF
+- Formats: ASA-style syslog, key/value, header-based CSV, JSON, CEF
 - Air-gapped, offline operation
 - Lossless raw retention and lineage
 - OCSF-aligned normalized events
@@ -34,6 +34,7 @@ rosettalog/
 │   ├── data-dictionary.md
 │   ├── requirements-traceability.md
 │   ├── benchmarks.md
+│   ├── claims-audit.md
 │   ├── limitations.md
 │   ├── decisions.md
 │   └── gate0-brief.md
@@ -92,11 +93,16 @@ Start the local API or UI directly:
 .\.venv\Scripts\python.exe -m streamlit run src\rosettalog\ui\streamlit_app.py
 ```
 
-Capture a local parser-throughput measurement with:
+Run an end-to-end raw-store, parse, and Parquet benchmark with:
 
 ```powershell
-.\.venv\Scripts\python.exe -m rosettalog bench samples\known\asa.log --report docs\benchmarks.md
+\.\.venv\Scripts\python.exe samples\generate.py --records-per-format 100000 --seed 2026
+\.\.venv\Scripts\python.exe -m rosettalog bench samples\benchmark\asa.log --report $env:TEMP\rosettalog-bench-asa.md
 ```
+
+The reproducible 100,000-record-per-format measurements and the separately
+labeled parser-only microbenchmark are documented in
+[docs/benchmarks.md](./docs/benchmarks.md).
 
 ## Clean-machine test checklist
 
@@ -121,7 +127,8 @@ Capture a local parser-throughput measurement with:
 ## Security and compliance choices
 
 - Raw bytes are kept unchanged in an append-only store.
-- Normalized-field masking is not implemented; events correctly set `flags.masked` to false.
+- Optional normalized IP truncation (`--mask-ips`, IPv4 `/24` and IPv6 `/64` by default) and username hashing (`--hash-usernames`) are applied after raw retention; hashing requires a salt via `ROSETTALOG_USERNAME_HASH_SALT` or `--username-hash-salt`.
+- Duplicate normalized events are retained and linked through `flags.duplicate_of` and `flags.duplicate_count`.
 - Vendor-specific fields are retained in `unmapped` rather than silently discarded.
 - No outbound network is required by the application at runtime; offline image
   builds require a pre-populated Linux wheelhouse and cached base image.
@@ -138,7 +145,9 @@ These are baseline contracts for the rest of the system and should not be change
 
 ## Notes
 
-Frozen schemas remain the contracts for all later gates. CSV parsing, duplicate
-suppression, normalized masking, Grok export, and billion-event-scale testing
-are not implemented. Benchmark measurements are local runs on the named fixture
-and must not be interpreted as billion-event scale results.
+Frozen schemas remain the contracts. **STUB:** multiline event assembly, Grok
+export, ML-specific export, API authentication, and scheduled drift baselines.
+Billion-event-scale testing has not been run.
+Benchmark measurements are local synthetic-data runs and must not be
+interpreted as billion-event scale results. Duplicate events are flagged, not
+suppressed.

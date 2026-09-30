@@ -40,6 +40,6 @@ The Streamlit UI is started with:
 python -m streamlit run src\rosettalog\ui\streamlit_app.py
 ```
 
-The service has no authentication. Compose binds both services to loopback and
+**STUB:** API authentication and authorization. Compose binds both services to loopback and
 uses an internal-only bridge network; deploy behind an authenticated boundary
 before exposing either port to other hosts.

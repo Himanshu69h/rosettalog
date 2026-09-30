@@ -1,15 +1,17 @@
 from __future__ import annotations
 
 import hashlib
+import ipaddress
 import json
 import os
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, TextIO
 from zoneinfo import ZoneInfo
 
-from jsonschema import FormatChecker, validate
+from jsonschema import FormatChecker
+from jsonschema.validators import validator_for
 
 from rosettalog.models import Envelope
 from rosettalog.parsing import ParsedLine, ParserRegistry
@@ -50,14 +52,39 @@ class Ingestor:
         envelope_schema_path: Path,
         max_line_bytes: int = 65_536,
         default_timezone: str = "UTC",
+        mask_ips: bool = False,
+        ipv4_prefix_length: int = 24,
+        ipv6_prefix_length: int = 64,
+        hash_usernames: bool = False,
+        username_hash_salt: str = "",
+        sync_event_ledger: bool = True,
     ) -> None:
+        if not 0 <= ipv4_prefix_length <= 32:
+            raise ValueError("ipv4_prefix_length must be between 0 and 32")
+        if not 0 <= ipv6_prefix_length <= 128:
+            raise ValueError("ipv6_prefix_length must be between 0 and 128")
+        if hash_usernames and not username_hash_salt:
+            raise ValueError("username_hash_salt is required when username hashing is enabled")
         self.raw_store = raw_store
         self.parser_registry = parser_registry
         self.max_line_bytes = max_line_bytes
         self.default_timezone = default_timezone
+        self.mask_ips = mask_ips
+        self.ipv4_prefix_length = ipv4_prefix_length
+        self.ipv6_prefix_length = ipv6_prefix_length
+        self.hash_usernames = hash_usernames
+        self.username_hash_salt = username_hash_salt
+        self.sync_event_ledger = sync_event_ledger
         self.envelope_schema = json.loads(envelope_schema_path.read_text(encoding="utf-8"))
+        validator_type = validator_for(self.envelope_schema)
+        validator_type.check_schema(self.envelope_schema)
+        self.envelope_validator = validator_type(
+            self.envelope_schema,
+            format_checker=FormatChecker(),
+        )
         self.event_path = raw_store.root / "events.jsonl"
         self.quarantine_path = raw_store.root / "quarantine.jsonl"
+        self._event_streams: dict[Path, TextIO] = {}
 
     def ingest_file(
         self, path: Path, *, ingest_time: datetime | None = None
@@ -71,6 +98,8 @@ class Ingestor:
         timestamp = timestamp.astimezone(timezone.utc)
         events: list[dict[str, Any]] = []
         quarantined: list[QuarantineRecord] = []
+        seen_events: dict[str, tuple[str, int]] = {}
+        csv_headers: list[str] | None = None
         records_seen = 0
 
         with path.open("rb") as source:
@@ -138,6 +167,13 @@ class Ingestor:
 
                 try:
                     parsed = self.parser_registry.parse(raw_text)
+                    if parsed is None and csv_headers is not None:
+                        parsed = self.parser_registry.parse_csv(raw_text, csv_headers)
+                    elif parsed is None and line_no == 1:
+                        csv_headers = self.parser_registry.detect_csv_header(raw_text)
+                        if csv_headers is not None:
+                            line_no += 1
+                            continue
                 except (ValueError, TypeError) as error:
                     quarantine = self._quarantine(
                         "parser_error", str(error), ref, source_id, source_file
@@ -166,12 +202,25 @@ class Ingestor:
                         source_file,
                         timestamp,
                     )
-                    validate(
-                        instance=envelope,
-                        schema=self.envelope_schema,
-                        format_checker=FormatChecker(),
+                    masked = self._mask_normalized(envelope)
+                    envelope["flags"]["masked"] = masked
+                    duplicate_key = json.dumps(
+                        envelope["event"], sort_keys=True, separators=(",", ":")
                     )
+                    previous = seen_events.get(duplicate_key)
+                    if previous is None:
+                        duplicate_count = 0
+                    else:
+                        first_event_id, duplicate_count = previous
+                        duplicate_count += 1
+                        envelope["flags"]["duplicate_of"] = first_event_id
+                        envelope["flags"]["duplicate_count"] = duplicate_count
+                    self.envelope_validator.validate(envelope)
                     Envelope.model_validate(envelope)
+                    if previous is None:
+                        seen_events[duplicate_key] = (envelope["event_id"], 0)
+                    else:
+                        seen_events[duplicate_key] = (previous[0], duplicate_count)
                 except (ValueError, TypeError, KeyError, OverflowError) as error:
                     quarantine = self._quarantine(
                         "invalid_envelope", str(error), ref, source_id, source_file
@@ -184,7 +233,56 @@ class Ingestor:
                 self._append_jsonl(self.event_path, envelope)
                 line_no += 1
 
+        if not self.sync_event_ledger:
+            self.sync_event_ledgers()
         return IngestReport(source_id, records_seen, tuple(events), tuple(quarantined))
+
+    def sync_event_ledgers(self) -> None:
+        for output in self._event_streams.values():
+            output.flush()
+            os.fsync(output.fileno())
+            output.close()
+        self._event_streams.clear()
+
+    def _mask_normalized(self, envelope: dict[str, Any]) -> bool:
+        masked = False
+
+        def transform(value: object, key: str = "") -> object:
+            nonlocal masked
+            if isinstance(value, dict):
+                return {
+                    item_key: transform(item, item_key.casefold())
+                    for item_key, item in value.items()
+                }
+            if isinstance(value, list):
+                return [transform(item, key) for item in value]
+            if not isinstance(value, str):
+                return value
+            if self.mask_ips and (key.endswith("ip") or key.endswith("_ip")):
+                try:
+                    address = ipaddress.ip_address(value)
+                except ValueError:
+                    return value
+                prefix = (
+                    self.ipv4_prefix_length if address.version == 4 else self.ipv6_prefix_length
+                )
+                masked_value = str(
+                    ipaddress.ip_network(f"{address}/{prefix}", strict=False).network_address
+                )
+                masked = masked or masked_value != value
+                return masked_value
+            username_field = key in {"user", "username", "user_name", "src_user", "dst_user"}
+            if self.hash_usernames and username_field:
+                digest = hashlib.sha256(
+                    f"{self.username_hash_salt}:{value}".encode("utf-8")
+                ).hexdigest()
+                masked = True
+                return f"sha256:{digest}"
+            return value
+
+        envelope["event"] = transform(envelope["event"])
+        envelope["unmapped"] = transform(envelope["unmapped"])
+        return masked
 
     def _make_envelope(
         self,
@@ -342,10 +440,20 @@ class Ingestor:
         self._append_jsonl(self.quarantine_path, asdict(record))
         return record
 
-    @staticmethod
-    def _append_jsonl(path: Path, value: object) -> None:
-        with path.open("a", encoding="utf-8", newline="\n") as output:
-            output.write(json.dumps(value, sort_keys=True, separators=(",", ":"), default=asdict))
-            output.write("\n")
-            output.flush()
-            os.fsync(output.fileno())
+    def _append_jsonl(self, path: Path, value: object) -> None:
+        if self.sync_event_ledger:
+            with path.open("a", encoding="utf-8", newline="\n") as durable_output:
+                durable_output.write(
+                    json.dumps(value, sort_keys=True, separators=(",", ":"), default=asdict)
+                )
+                durable_output.write("\n")
+                durable_output.flush()
+                os.fsync(durable_output.fileno())
+            return
+
+        output = self._event_streams.get(path)
+        if output is None:
+            output = path.open("a", encoding="utf-8", newline="\n")
+            self._event_streams[path] = output
+        output.write(json.dumps(value, sort_keys=True, separators=(",", ":"), default=asdict))
+        output.write("\n")

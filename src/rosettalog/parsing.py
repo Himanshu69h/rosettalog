@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 import json
 from dataclasses import dataclass
 from datetime import datetime
@@ -27,6 +28,41 @@ class ParsedLine:
 
 
 class ParserRegistry:
+    _CSV_FIELDS: dict[str, tuple[str, str]] = {
+        "time": ("event.time", "timestamp"),
+        "timestamp": ("event.time", "timestamp"),
+        "event_time": ("event.time", "timestamp"),
+        "datetime": ("event.time", "timestamp"),
+        "src": ("event.src_endpoint.ip", "ipv4"),
+        "srcip": ("event.src_endpoint.ip", "ipv4"),
+        "src_ip": ("event.src_endpoint.ip", "ipv4"),
+        "source_ip": ("event.src_endpoint.ip", "ipv4"),
+        "source_address": ("event.src_endpoint.ip", "ipv4"),
+        "dst": ("event.dst_endpoint.ip", "ipv4"),
+        "dstip": ("event.dst_endpoint.ip", "ipv4"),
+        "dst_ip": ("event.dst_endpoint.ip", "ipv4"),
+        "destination_ip": ("event.dst_endpoint.ip", "ipv4"),
+        "destination_address": ("event.dst_endpoint.ip", "ipv4"),
+        "sport": ("event.src_endpoint.port", "int"),
+        "srcport": ("event.src_endpoint.port", "int"),
+        "src_port": ("event.src_endpoint.port", "int"),
+        "dport": ("event.dst_endpoint.port", "int"),
+        "dstport": ("event.dst_endpoint.port", "int"),
+        "dst_port": ("event.dst_endpoint.port", "int"),
+        "proto": ("event.protocol_name", "free_text"),
+        "protocol": ("event.protocol_name", "free_text"),
+        "protocol_name": ("event.protocol_name", "free_text"),
+        "action": ("event.action", "free_text"),
+        "result": ("event.action", "free_text"),
+        "msg": ("event.message", "free_text"),
+        "message": ("event.message", "free_text"),
+        "description": ("event.message", "free_text"),
+        "severity": ("event.severity", "free_text"),
+        "username": ("event.user_name", "free_text"),
+        "user": ("event.user_name", "free_text"),
+        "user_name": ("event.user_name", "free_text"),
+    }
+
     def __init__(self, parser_dir: Path, schema_path: Path) -> None:
         self._definitions: list[dict[str, Any]] = []
         self._patterns: list[list[Any]] = []
@@ -103,6 +139,59 @@ class ParserRegistry:
                     activity=template["activity"],
                 )
         return None
+
+    @classmethod
+    def detect_csv_header(cls, raw: str) -> list[str] | None:
+        try:
+            headers = next(csv.reader([raw], strict=True))
+        except (csv.Error, StopIteration):
+            return None
+        normalized = [
+            header.strip().casefold().replace("-", "_").replace(" ", "_")
+            for header in headers
+        ]
+        if len(normalized) < 2 or any(not header for header in normalized):
+            return None
+        if len(set(normalized)) != len(normalized):
+            return None
+        if sum(header in cls._CSV_FIELDS for header in normalized) < 2:
+            return None
+        return normalized
+
+    @classmethod
+    def parse_csv(cls, raw: str, headers: list[str]) -> ParsedLine | None:
+        try:
+            values = next(csv.reader([raw], strict=True))
+        except (csv.Error, StopIteration):
+            return None
+        if len(values) != len(headers):
+            return None
+
+        event: dict[str, object] = {}
+        unmapped: dict[str, object] = {}
+        confidence = 0.9
+        for name, value in zip(headers, values, strict=True):
+            field = cls._CSV_FIELDS.get(name)
+            if field is None:
+                unmapped[name] = value
+                continue
+            path, field_type = field
+            if value:
+                converted = cls._convert_value(field_type, value)
+                cls._set_path(event, path.removeprefix("event."), converted)
+            confidence = min(confidence, 0.9)
+
+        return ParsedLine(
+            parser_name="csv_header",
+            parser_version=1,
+            template_id="csv_header",
+            confidence=confidence,
+            raw=raw,
+            fields={"event": event},
+            unmapped=unmapped,
+            event_class="Network Activity",
+            activity="record",
+        )
 
     @staticmethod
     def _convert_value(field_type: str, value: object) -> object:

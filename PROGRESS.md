@@ -2,12 +2,12 @@
 
 ## Current state
 
-- Current gate: Complete.
+- Current gate: Hardening pass in progress.
 - Spec status: `PROJECT_BRIEF.md` was read in full; it references section 16 but does not contain it. The current user request supplies explicit deliverables for Gates 1-4 and Freeze, plus the six design rules, and is being used to scope implementation.
 - Baseline status: verified. `HEAD` is commit `9c7c4cb` and carries the `gate-0-frozen` tag. Frozen schemas will not be edited.
-- In-progress item: None.
-- Known failures/blockers: The first end-to-end demo exposed unsupported inferred `timestamp` values; runtime conversion and UTC normalization are fixed, covered by a regression test, and the full demo now passes. The first benchmark request exceeded the supported iteration bound; rerunning with 1000 iterations completed. Docker is unavailable, so the network-disabled image build and Compose runtime are UNTESTED. Runtime rejects draft/unverified parsers; all frozen schemas remain unchanged.
-- STUB items remaining: CSV parsing, multiline assembly, normalized-field masking, duplicate suppression/linking, Grok export, ML-specific export, API authentication, and persistent/scheduled drift baselines. Docker/Compose airgap execution is UNTESTED.
+- In-progress item: Run four 100,000-record end-to-end benchmarks with benchmark-only batched sync and final flush; then ordered hardening validation and commit/tag.
+- Known failures/blockers: Docker is unavailable, so the network-disabled image build and Compose runtime are UNTESTED. Runtime rejects draft/unverified parsers; all frozen schemas remain unchanged. An initial onboarding fixture generated overlapping learned templates; it was corrected and learn-plus-verify now passes.
+- STUB items remaining: Multiline assembly, Grok export, ML-specific export, API authentication, and persistent/scheduled drift baselines. Docker/Compose airgap execution is UNTESTED.
 
 ## Gate 0
 
@@ -96,3 +96,24 @@
 - [x] Final validation: `pip check` clean; `pytest` 64 passed in 13.61s; `ruff check .` clean; `mypy src` clean (19 source files).
 - [x] Real final parser benchmark: 3000 parses, 1.0 coverage, 0.2323s, 12916.58 records/sec on Windows 10 / Python 3.11.9; local fixture microbenchmark only.
 - [x] Seven-step `scripts/demo.py` completed end to end. Docker/Compose run remains UNTESTED.
+
+## Hardening pass
+
+- [x] Added seeded streaming generation for 100,000 records per format; generated ASA, FortiGate, CEF, and JSON files with seed 2026.
+- [x] Added end-to-end `rosetta bench` path for rawstore append, parse/envelope/event-ledger writes, and Parquet serialization; parser-only mode remains available with `--micro`.
+- [x] Preserved normal per-record durability while batching benchmark rawstore syncs every 1,000 records and syncing the event ledger once at ingestion completion; all final syncs are inside the timer.
+- [x] Cached the frozen envelope JSON Schema validator in `Ingestor` after profiling found repeated per-event schema meta-validation dominated runtime; focused ingest and benchmark tests pass.
+- [x] Added opt-in IP truncation and salted username hashing on normalized fields only; raw evidence is unchanged. Prefix lengths are configurable.
+- [x] Added CLI masking options and verified a custom `/16` truncation with raw preservation; focused CLI suite: 4 passed.
+- [x] Added duplicate linkage/counting without deleting events; raw-store and event-retention regressions pass.
+- [x] Added recognized-header CSV parsing with raw-preserved header and mapped rows; focused ingest test passes.
+- [x] Added `scripts/benchmark_onboarding.py`; unseen Northstar learn-plus-verify completed with a valid report in 1.9228 seconds in the measured run.
+- [x] Added `docs/claims-audit.md`; refreshed README and docs claims; historical Gate 0 stub list is identified as historical.
+- [x] Added `.vscode/` to `.gitignore`; existing `.vscode/settings.json` user edit is preserved.
+- [x] ASA 100,000-record end-to-end benchmark: 100,000 parsed/Parquet rows, 153.49s, 651.50 events/s, 81.44 events/s per logical core.
+- [x] FortiGate 100,000-record end-to-end benchmark: 100,000 parsed/Parquet rows, 158.69s, 630.15 events/s, 78.77 events/s per logical core.
+- [x] CEF 100,000-record end-to-end benchmark: 100,000 parsed/written rows, 137.94s, 724.97 events/s, 90.62 events/s per logical core.
+- [x] JSON 100,000-record end-to-end benchmark: 100,000 parsed/Parquet rows, 137.55s, 726.98 events/s, 90.87 events/s per logical core.
+- [x] Updated `docs/benchmarks.md` and slide results with measured rates, onboarding time, microbenchmark scope, and reproduction commands.
+- [x] Final ordered validation: `pip check` clean; `pytest` 73 passed in 12.89s; `ruff check .` clean; `mypy src` clean (19 source files).
+- [ ] Commit hardening changes and create `hardening-done` tag.

@@ -6,6 +6,7 @@ import os
 import threading
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from typing import BinaryIO, TextIO
 
 import zstandard
 
@@ -35,14 +36,25 @@ class StoreVerification:
 
 
 class RawStore:
-    def __init__(self, root: Path, *, max_record_bytes: int = 65_536) -> None:
+    def __init__(
+        self,
+        root: Path,
+        *,
+        max_record_bytes: int = 65_536,
+        sync_every: int = 1,
+    ) -> None:
+        if sync_every < 1:
+            raise ValueError("sync_every must be positive")
         self.root = root
         self.data_path = root / "records.zst"
         self.index_path = root / "index.jsonl"
         self.max_record_bytes = max_record_bytes
+        self.sync_every = sync_every
         self._lock = threading.Lock()
         self._compressor = zstandard.ZstdCompressor(level=3)
         self._decompressor = zstandard.ZstdDecompressor()
+        self._data_stream: BinaryIO | None = None
+        self._index_stream: TextIO | None = None
         self.root.mkdir(parents=True, exist_ok=True)
         self._sequence = self._indexed_record_count()
 
@@ -61,7 +73,13 @@ class RawStore:
             raise RawStoreError("source position must have a non-negative offset and positive line")
         compressed = self._compressor.compress(raw)
         with self._lock:
-            frame_offset = self.data_path.stat().st_size if self.data_path.exists() else 0
+            if self.sync_every == 1:
+                frame_offset = self.data_path.stat().st_size if self.data_path.exists() else 0
+            else:
+                self._open_batch_streams()
+                assert self._data_stream is not None
+                assert self._index_stream is not None
+                frame_offset = self._data_stream.tell()
             ref = RawRecordRef(
                 sequence=self._sequence,
                 frame_offset=frame_offset,
@@ -73,18 +91,62 @@ class RawStore:
                 byte_offset=byte_offset,
                 line_no=line_no,
             )
-            with self.data_path.open("ab") as data_file:
-                data_file.write(compressed)
-                data_file.flush()
-                os.fsync(data_file.fileno())
-
-            with self.index_path.open("a", encoding="utf-8", newline="\n") as index_file:
-                index_file.write(json.dumps(asdict(ref), sort_keys=True, separators=(",", ":")))
-                index_file.write("\n")
-                index_file.flush()
-                os.fsync(index_file.fileno())
+            if self.sync_every == 1:
+                with self.data_path.open("ab") as data_file:
+                    data_file.write(compressed)
+                    data_file.flush()
+                    os.fsync(data_file.fileno())
+                with self.index_path.open("a", encoding="utf-8", newline="\n") as index_file:
+                    index_file.write(
+                        json.dumps(asdict(ref), sort_keys=True, separators=(",", ":"))
+                    )
+                    index_file.write("\n")
+                    index_file.flush()
+                    os.fsync(index_file.fileno())
+            else:
+                assert self._data_stream is not None
+                assert self._index_stream is not None
+                self._data_stream.write(compressed)
+                self._index_stream.write(
+                    json.dumps(asdict(ref), sort_keys=True, separators=(",", ":"))
+                )
+                self._index_stream.write("\n")
             self._sequence += 1
+            if self.sync_every > 1 and self._sequence % self.sync_every == 0:
+                self._sync_locked()
             return ref
+
+    def sync(self) -> None:
+        with self._lock:
+            self._sync_locked()
+
+    def close(self) -> None:
+        with self._lock:
+            self._sync_locked()
+            for stream in (self._data_stream, self._index_stream):
+                if stream is not None:
+                    stream.close()
+            self._data_stream = None
+            self._index_stream = None
+
+    def _open_batch_streams(self) -> None:
+        if self._data_stream is None:
+            self._data_stream = self.data_path.open("ab")
+        if self._index_stream is None:
+            self._index_stream = self.index_path.open("a", encoding="utf-8", newline="\n")
+
+    def _sync_locked(self) -> None:
+        streams = (
+            (self._data_stream, self.data_path),
+            (self._index_stream, self.index_path),
+        )
+        for stream, path in streams:
+            if stream is not None:
+                stream.flush()
+                os.fsync(stream.fileno())
+            elif path.exists():
+                with path.open("ab") as output:
+                    os.fsync(output.fileno())
 
     def read(self, ref: RawRecordRef) -> bytes:
         try:

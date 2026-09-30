@@ -11,7 +11,7 @@ This repository implements the mandatory baseline for RosettaLog before runtime 
 - seed sample generator
 - schema validation tests
 
-## Explicitly stubbed
+## Explicitly stubbed at the Gate 0 baseline
 
 - parser learning engine
 - verification engine
@@ -19,4 +19,6 @@ This repository implements the mandatory baseline for RosettaLog before runtime 
 - DuckDB and Parquet access
 - FastAPI and Streamlit UIs
 
-These items remain for later gates and are marked as STUB where relevant.
+These items were the original Gate 0 stubs. Parser learning, verification,
+runtime ingestion, Parquet/DuckDB access, and API/UI support were implemented in
+later gates. See `docs/limitations.md` for the current STUB and UNTESTED list.

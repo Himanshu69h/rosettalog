@@ -55,10 +55,10 @@ future taxonomy fields without modifying the frozen envelope schema.
 
 | Field | Type | Current behavior |
 |---|---|---|
-| `flags.duplicate_of` | string or null | Always null; duplicate linking is not implemented |
-| `flags.duplicate_count` | non-negative integer | Always zero; duplicate suppression is not implemented |
+| `flags.duplicate_of` | string or null | Null for the first normalized event; later duplicates reference its event ID |
+| `flags.duplicate_count` | non-negative integer | Zero for the first occurrence; one-based duplicate occurrence count for later events |
 | `flags.tz_assumed` | boolean | True when ingestion applies its configured/default timezone to a timezone-less value |
-| `flags.masked` | boolean | False; no normalized-field masking policy is currently implemented |
+| `flags.masked` | boolean | True when an enabled policy changed normalized data; raw fields are never changed |
 
 ## Parquet query columns
 
@@ -72,5 +72,7 @@ and flags. `raw` and `raw_sha256` remain available for lineage checks.
 
 The supported class list is `Network Activity`, `Authentication`, and
 `Detection Finding`. Vendor fields are retained only when the selected parser
-captures them. CSV input parsing, normalized-field masking, and duplicate
-linking are not implemented.
+captures them. CSV requires a recognized header row and maps known aliases;
+unknown columns remain in `unmapped`. Duplicate matching compares the
+normalized event within each ingested file. Masking is opt-in and currently
+targets IP-address fields and username fields.

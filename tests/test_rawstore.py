@@ -64,3 +64,22 @@ def test_rawstore_rejects_oversized_records(tmp_path: Path) -> None:
 
     with pytest.raises(RawStoreError, match="exceeds"):
         store.append(b"12345", source_id="source", source_file="x", byte_offset=0, line_no=1)
+
+
+def test_batched_rawstore_sync_persists_tail_records(tmp_path: Path) -> None:
+    root = tmp_path / "batched"
+    store = RawStore(root, sync_every=10)
+    expected = [b"one\n", b"two\n", b"three\n"]
+    for line_no, raw in enumerate(expected, start=1):
+        store.append(
+            raw,
+            source_id="source",
+            source_file="input.log",
+            byte_offset=line_no - 1,
+            line_no=line_no,
+        )
+    store.close()
+
+    reopened = RawStore(root)
+    assert reopened.verify().valid
+    assert [reopened.read(ref) for ref in reopened.records()] == expected

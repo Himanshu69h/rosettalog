@@ -5,7 +5,11 @@ from pathlib import Path
 
 from typer.testing import CliRunner
 
-from rosettalog.benchmarks import run_benchmark, write_benchmark_report
+from rosettalog.benchmarks import (
+    run_benchmark,
+    run_pipeline_benchmark,
+    write_benchmark_report,
+)
 from rosettalog.cli import app
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -54,4 +58,27 @@ def test_bench_cli_writes_requested_report(tmp_path: Path) -> None:
 
     assert result.exit_code == 0, result.output
     assert report_path.is_file()
-    assert json.loads(result.stdout)["parsed_records"] == 3
+    summary = json.loads(result.stdout)
+    assert summary["parsed_records"] == 3
+    assert summary["parquet_rows"] == 3
+    assert summary["events_per_second"] > 0
+    assert summary["events_per_second_per_core"] > 0
+    assert "end-to-end pipeline benchmark" in report_path.read_text(encoding="utf-8")
+
+
+def test_pipeline_benchmark_counts_written_events(tmp_path: Path) -> None:
+    input_file = ROOT / "samples" / "known" / "asa.log"
+
+    result = run_pipeline_benchmark(
+        input_file,
+        ROOT / "parsers",
+        PARSER_SCHEMA,
+        ROOT / "schemas" / "envelope.schema.json",
+    )
+
+    assert result.records_processed == 3
+    assert result.parsed_records == 3
+    assert result.quarantined_records == 0
+    assert result.parquet_rows == 3
+    assert result.events_per_second > 0
+    assert result.events_per_second_per_core > 0

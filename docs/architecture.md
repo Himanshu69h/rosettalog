@@ -4,9 +4,9 @@
 
 RosettaLog converts bounded, line-oriented perimeter-device logs into validated
 event envelopes. Its lifecycle is Learn -> Verify -> Run -> Monitor. The
-implementation supports four known input families: ASA-style syslog, FortiGate
-key/value, CEF, and JSON. It is OCSF-aligned to the checked-in subset, not a
-complete OCSF implementation.
+implementation supports four YAML parser templates (ASA-style syslog, FortiGate
+key/value, CEF, and JSON), plus CSV with a recognized header row. It is
+OCSF-aligned to the checked-in subset, not a complete OCSF implementation.
 
 ```mermaid
 flowchart LR
@@ -39,28 +39,32 @@ compressed store before decoding or parsing. A record that is oversized,
 invalid UTF-8, unmatched, or rejected by a parser remains in the rawstore and
 receives a reason-coded quarantine entry. Successful parses are converted into
 envelopes and checked against the frozen schema before being appended to the
-event ledger and Parquet sink.
+event ledger. The `run` CLI passes the validated event collection to the
+Parquet sink after ingestion completes.
 
 ```mermaid
 sequenceDiagram
     participant File as Source file
+    participant CLI as Run CLI
     participant I as Ingestor
     participant RS as RawStore
     participant PR as ParserRegistry
     participant EL as Event ledger
     participant PQ as ParquetSink
-    File->>I: bytes + source offsets
+    CLI->>I: ingest file
+    I->>File: read bytes + source offsets
     I->>RS: append bytes + SHA-256 + index
     RS-->>I: verifiable record reference
     I->>PR: decoded line
     alt parse succeeds and envelope validates
         PR-->>I: mapped + unmapped values
         I->>EL: envelope with source and raw hash
-        I->>PQ: normalized event row
     else parse or validation fails
         I->>RS: retain original bytes
         I-->>I: append quarantine reason
     end
+    I-->>CLI: validated event collection
+    CLI->>PQ: write Parquet part
 ```
 
 Each rawstore entry is an independent Zstandard frame. `index.jsonl` records
@@ -70,6 +74,12 @@ integrity. `event_id` is a deterministic SHA-256 digest over source identity,
 byte offset, and raw digest. `trace` resolves an envelope back to its rawstore
 reference; `verify-event` and `verify-store` validate hashes, schemas, and
 lineage.
+
+Optional IP truncation and username hashing modify only normalized values after
+the raw bytes have been stored. Duplicate normalized events remain in the
+output and link to the first event ID; the count records later occurrences
+within one input file. CSV's recognized header row is retained in rawstore but
+does not become an event.
 
 The raw payload in the envelope is the UTF-8 representation of the original
 record, including its line ending. It is not a replacement for the rawstore:
@@ -106,7 +116,7 @@ Monitoring computes coverage and mean confidence over a bounded input batch.
 On drift it writes a report and may create a new, schema-valid draft parser from
 unmatched records. It does not activate that proposal. Verification reports
 and parser files are not signed, so local write access remains part of the
-trust boundary.
+trust boundary. Scheduled monitoring and persistent baselines are **STUB**.
 
 ## 4. Query, export, and operator interfaces
 
@@ -144,9 +154,9 @@ invalid input into successful empty results.
 The rawstore and reports may contain sensitive paths or event data. CEF and
 syslog exports include a recoverable complete envelope; protect their
 destinations accordingly. The API does not provide authentication and should
-only be exposed behind a trusted, authenticated boundary. Normalized-field
-masking, duplicate suppression, multiline assembly, CSV parsing, and Grok export
-are not implemented.
+only be exposed behind a trusted, authenticated boundary. **STUB:** API
+authentication, multiline assembly, Grok export, and ML-specific export.
+Duplicate events are linked, never suppressed.
 
 ## 6. Implementation map
 

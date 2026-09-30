@@ -75,6 +75,41 @@ def test_cli_run_trace_verify_and_query(tmp_path: Path) -> None:
     assert len(json.loads(query_result.stdout)) == 2
 
 
+def test_cli_run_masks_normalized_ip_but_preserves_raw(tmp_path: Path) -> None:
+    source = ROOT / "samples" / "known" / "json.log"
+    raw_line = source.read_bytes().splitlines(keepends=True)[0]
+    original = json.loads(raw_line)
+    raw_store = tmp_path / "raw"
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            str(source),
+            "--raw-store",
+            str(raw_store),
+            "--parquet",
+            str(tmp_path / "parquet"),
+            "--parsers",
+            str(ROOT / "parsers"),
+            "--parser-schema",
+            str(ROOT / "schemas" / "parser.schema.json"),
+            "--envelope-schema",
+            str(ROOT / "schemas" / "envelope.schema.json"),
+            "--mask-ips",
+            "--ipv4-prefix-length",
+            "16",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    envelope = json.loads((raw_store / "events.jsonl").read_text(encoding="utf-8").splitlines()[0])
+    assert envelope["flags"]["masked"] is True
+    assert envelope["event"]["src_endpoint"]["ip"].startswith("10.")
+    assert envelope["event"]["src_endpoint"]["ip"].endswith(".0.0")
+    assert envelope["raw"] == raw_line.decode("utf-8")
+    assert json.loads(envelope["raw"])["src_ip"] == original["src_ip"]
+
+
 def test_verify_event_rejects_a_tampered_raw_hash(tmp_path: Path) -> None:
     source = ROOT / "samples" / "known" / "json.log"
     raw_store = tmp_path / "raw"
