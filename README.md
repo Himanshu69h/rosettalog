@@ -1,5 +1,14 @@
 # RosettaLog
 
+## Team
+
+**Team RosettaLog** (Smart India Hackathon, problem statement SIH26156)
+
+| Name | GitHub |
+|---|---|
+| Himanshu | [@Himanshu69h](https://github.com/Himanshu69h) |
+| Mrunal | [@mrunal1233](https://github.com/mrunal1233) |
+
 RosettaLog is an air-gapped, containerized framework that converts perimeter-network logs into a lossless, traceable, OCSF-aligned event stream. The project is intentionally scoped to perimeter devices and to offline, auditable processing. It does not claim to ingest arbitrary logs or require a networked model.
 
 ## Implementation status
