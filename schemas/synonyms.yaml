@@ -8,8 +8,12 @@ sources:
   - src: dst_endpoint.port
     aliases: [dport, dstport]
   - src: protocol_name
-    aliases: [proto, protocol]
+    aliases: [proto, protocol, protocol_name]
   - src: action
-    aliases: [event_action, action_name, result]
+    aliases: [action, event_action, action_name, result]
   - src: message
-    aliases: [msg, description, text]
+    aliases: [msg, description, text, message]
+  - src: severity
+    aliases: [severity, severity_id, priority]
+  - src: time
+    aliases: [timestamp, event_time, datetime]

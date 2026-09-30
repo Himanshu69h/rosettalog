@@ -35,6 +35,8 @@ class ParserRegistry:
             if not isinstance(definition, dict):
                 raise ValueError(f"Parser definition must be a mapping: {path}")
             validate(instance=definition, schema=schema)
+            if definition["state"] not in {"verified", "active"}:
+                continue
             patterns = [compile_pattern(template["regex"]) for template in definition["templates"]]
             self._definitions.append(definition)
             self._patterns.append(patterns)

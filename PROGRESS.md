@@ -2,12 +2,12 @@
 
 ## Current state
 
-- Current gate: Gate 1, all validation green; commit/tag pending.
+- Current gate: Gate 3 implementation.
 - Spec status: `PROJECT_BRIEF.md` was read in full; it references section 16 but does not contain it. The current user request supplies explicit deliverables for Gates 1-4 and Freeze, plus the six design rules, and is being used to scope implementation.
 - Baseline status: verified. `HEAD` is commit `9c7c4cb` and carries the `gate-0-frozen` tag. Frozen schemas will not be edited.
-- In-progress item: verify frozen schemas are unchanged and review the worktree before committing/tagging Gate 1.
-- Known failures/blockers: none. CEF severity matches the frozen envelope contract; no schema files were edited.
-- STUB items remaining: Gate 2 learner/inference/OCSF mapper/emitter/review; Gate 3 verifier/reports/state machine/benchmark; Gate 4 drift monitor/export/API/UI/airgap test.
+- In-progress item: Gate 3 verifier gate, reports, state machine, and real benchmark command.
+- Known failures/blockers: Gate 2 validation had transient Ruff findings and an untyped Drain3 import issue; both were corrected. Runtime rejects draft/unverified parsers; all frozen schemas remain unchanged.
+- STUB items remaining: Gate 3 verifier/reports/state machine/benchmark; Gate 4 drift monitor/export/API/UI/airgap test.
 
 ## Gate 0
 
@@ -18,7 +18,7 @@
 - [x] Seed sample generator is present.
 - [x] Schema validation tests are present.
 - [x] Verify the frozen baseline commit `gate-0-frozen` (`9c7c4cb`).
-- [ ] Confirm clean Gate 0 validation output from this checkout before building on it.
+- [x] Confirm clean Gate 0 validation output from this checkout as part of the Gate 1 suite.
 
 ## Gate 1
 
@@ -47,19 +47,20 @@
 - [x] Focused post-type-alignment parser/ingest tests: 19 passed.
 - [x] Focused post-fix `mypy src`: Success, no issues found in 14 source files.
 - [x] Final ordered validation after all Gate 1 fixes: `pip check` clean; `pytest` 35 passed in 8.48s; `ruff check` clean; `mypy src` clean (14 source files).
-- [ ] Commit `Gate 1: <summary>` and tag `gate-1-done` after a green validation run.
+- [x] Commit `956158b` (`Gate 1: lossless runtime ingestion and lineage`) and tag `gate-1-done` after green validation.
 
 ## Gate 2
 
-- [ ] Learner using drain3.
-- [ ] Type inference.
-- [ ] Key inference.
-- [ ] OCSF mapper using `synonyms.yaml`.
-- [ ] YAML emitter.
-- [ ] Review list.
-- [ ] Leave-one-format-out test with real `X of Y correct` mapping accuracy.
-- [ ] Gate 2 tests and ordered validation from the authoritative brief.
-- [ ] Commit `Gate 2: <summary>` and tag `gate-2-done` after a green validation run.
+- [x] Runtime executes only `verified`/`active` parsers; draft rejection and the four verified built-ins pass 20 focused parser/ingest tests.
+- [x] Learner using drain3 (0.9.11); known FortiGate samples form one generalized cluster.
+- [x] Type inference and key inference across IP, integer, enum, timestamp, and free-text values.
+- [x] OCSF mapper uses normalized aliases from `synonyms.yaml`.
+- [x] YAML emitter validates against the frozen parser schema and always emits `draft` state.
+- [x] Review list persists pending parser candidates.
+- [x] Leave-one-format-out test reports a real mapping score: 10 of 10 correct.
+- [x] CLI `learn` emits schema-valid drafts to a separate output directory and appends review items; focused learner/CLI suite: 8 passed.
+- [x] Gate 2 full validation: `pip check` clean; `pytest` 42 passed in 8.24s; `ruff check .` clean; `mypy src` clean (15 source files).
+- [x] Commit `Gate 2: parser learning and draft review`; tag `gate-2-done`.
 
 ## Gate 3
 

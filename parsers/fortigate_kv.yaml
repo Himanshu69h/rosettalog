@@ -1,6 +1,6 @@
 name: fortigate_kv
 version: 1
-state: draft
+state: verified
 source_format: key_value
 envelope:
   header_regex: null
@@ -26,4 +26,4 @@ templates:
     activity: accept
 unmapped_policy: retain
 created_from: samples/known/fortigate.log
-verify_report_ref: null
+verify_report_ref: tests/test_ingest.py

@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+import yaml
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
@@ -75,3 +76,16 @@ def test_parser_handles_arbitrary_hostile_text(raw: str) -> None:
     result = registry.parse(raw)
 
     assert result is None or result.raw == raw
+
+
+def test_draft_parser_is_never_executed(tmp_path: Path) -> None:
+    parser_dir = tmp_path / "parsers"
+    parser_dir.mkdir()
+    definition = yaml.safe_load(
+        (ROOT / "parsers" / "json_generic.yaml").read_text(encoding="utf-8")
+    )
+    definition["state"] = "draft"
+    (parser_dir / "draft.yaml").write_text(yaml.safe_dump(definition), encoding="utf-8")
+    registry = ParserRegistry(parser_dir, ROOT / "schemas" / "parser.schema.json")
+
+    assert registry.parse('{"action":"deny","src_ip":"10.0.0.1"}') is None

@@ -1,6 +1,6 @@
 name: json_generic
 version: 1
-state: draft
+state: verified
 source_format: json
 envelope:
   header_regex: '^\s*\{.*\}\s*$'
@@ -22,4 +22,4 @@ templates:
     activity: record
 unmapped_policy: retain
 created_from: samples/known/json.log
-verify_report_ref: null
+verify_report_ref: tests/test_ingest.py

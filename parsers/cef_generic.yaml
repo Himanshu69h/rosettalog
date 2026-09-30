@@ -1,6 +1,6 @@
 name: cef_generic
 version: 1
-state: draft
+state: verified
 source_format: cef
 envelope:
   header_regex: '^CEF:.*$'
@@ -22,4 +22,4 @@ templates:
     activity: observe
 unmapped_policy: retain
 created_from: samples/known/cef.log
-verify_report_ref: null
+verify_report_ref: tests/test_ingest.py

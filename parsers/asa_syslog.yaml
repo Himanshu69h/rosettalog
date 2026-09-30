@@ -1,6 +1,6 @@
 name: asa_syslog
 version: 1
-state: draft
+state: verified
 source_format: syslog3164
 envelope:
   header_regex: '^.*?\s+(?P<ts>[A-Z][a-z]{2}\s+\d+\s+\d{2}:\d{2}:\d{2})\s+(?P<host>\S+)\s+.*$'
@@ -26,4 +26,4 @@ templates:
     activity: deny
 unmapped_policy: retain
 created_from: samples/known/asa.log
-verify_report_ref: null
+verify_report_ref: tests/test_ingest.py

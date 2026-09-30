@@ -10,6 +10,7 @@ from jsonschema import FormatChecker, ValidationError, validate
 
 from rosettalog.analytics import ParquetSink, query_events
 from rosettalog.ingest import Ingestor
+from rosettalog.learning import ParserLearner, ReviewList, YamlEmitter
 from rosettalog.parsing import ParserRegistry
 from rosettalog.rawstore import RawStore, RawStoreError
 
@@ -26,6 +27,64 @@ def health() -> None:
 def version() -> None:
     """Display the package version."""
     typer.echo("0.1.0")
+
+
+@app.command()
+def learn(
+    input_file: Path,
+    name: str,
+    output_dir: Path = typer.Option(Path("draft_parsers"), "--output"),
+    review_list: Path = typer.Option(Path("review_queue.jsonl"), "--review-list"),
+    source_format: str = typer.Option("key_value", "--source-format"),
+    parser_schema: Path = typer.Option(Path("schemas/parser.schema.json"), "--parser-schema"),
+    synonyms: Path = typer.Option(Path("schemas/synonyms.yaml"), "--synonyms"),
+) -> None:
+    """Learn a parser candidate and leave it in the review queue as a draft."""
+    max_file_bytes = 50 * 1024 * 1024
+    try:
+        if input_file.stat().st_size > max_file_bytes:
+            raise ValueError(f"training file exceeds {max_file_bytes} bytes")
+        records = [
+            line
+            for line in input_file.read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ]
+        learner = ParserLearner(
+            synonyms,
+            parser_schema,
+            review_list=ReviewList(review_list),
+        )
+        result = learner.learn(
+            records,
+            name=name,
+            source_format=source_format,
+            created_from=str(input_file),
+        )
+        output_path = YamlEmitter(parser_schema).emit(result.definition, output_dir)
+    except (OSError, UnicodeDecodeError, ValueError) as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(code=1) from error
+    typer.echo(
+        json.dumps(
+            {
+                "parser_file": str(output_path),
+                "review_list": str(review_list),
+                "state": result.definition["state"],
+                "records_used": result.records_used,
+                "cluster_count": result.cluster_count,
+                "inferred_fields": [
+                    {
+                        "name": field.name,
+                        "type": field.field_type,
+                        "ocsf_path": field.ocsf_path,
+                        "confidence": field.confidence,
+                    }
+                    for field in result.inferred_fields
+                ],
+            },
+            sort_keys=True,
+        )
+    )
 
 
 @app.command()
