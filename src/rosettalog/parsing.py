@@ -41,6 +41,10 @@ class ParserRegistry:
             self._definitions.append(definition)
             self._patterns.append(patterns)
 
+    @property
+    def parser_count(self) -> int:
+        return len(self._definitions)
+
     def parse(self, raw: str) -> ParsedLine | None:
         record = raw.rstrip("\r\n")
         for definition, patterns in zip(self._definitions, self._patterns, strict=True):

@@ -2,12 +2,12 @@
 
 ## Current state
 
-- Current gate: Gate 3 implementation.
+- Current gate: Gate 4 implementation.
 - Spec status: `PROJECT_BRIEF.md` was read in full; it references section 16 but does not contain it. The current user request supplies explicit deliverables for Gates 1-4 and Freeze, plus the six design rules, and is being used to scope implementation.
 - Baseline status: verified. `HEAD` is commit `9c7c4cb` and carries the `gate-0-frozen` tag. Frozen schemas will not be edited.
-- In-progress item: Gate 3 verifier gate, reports, state machine, and real benchmark command.
-- Known failures/blockers: Gate 2 validation had transient Ruff findings and an untyped Drain3 import issue; both were corrected. Runtime rejects draft/unverified parsers; all frozen schemas remain unchanged.
-- STUB items remaining: Gate 3 verifier/reports/state machine/benchmark; Gate 4 drift monitor/export/API/UI/airgap test.
+- In-progress item: Gate 4 drift monitoring, export, service, UI, and offline container path.
+- Known failures/blockers: Gate 2 validation had transient Ruff findings and an untyped Drain3 import issue; both were corrected. The first benchmark request exceeded the supported iteration bound; rerunning with 1000 iterations completed. Runtime rejects draft/unverified parsers; all frozen schemas remain unchanged.
+- STUB items remaining: Gate 4 drift monitor/export/API/UI/airgap test.
 
 ## Gate 0
 
@@ -64,12 +64,12 @@
 
 ## Gate 3
 
-- [ ] Verifier gate: coverage, required fields, over-merge, round-trip, and RE2 safety.
-- [ ] HTML and JSON verification reports.
-- [ ] Parser state machine.
-- [ ] `rosetta bench` writes `docs/benchmarks.md` from real measurements.
-- [ ] Gate 3 tests and ordered validation from the authoritative brief.
-- [ ] Commit `Gate 3: <summary>` and tag `gate-3-done` after a green validation run.
+- [x] Verifier gate: labeled-fixture coverage, required fields, over-merge rejection, raw round-trip, and RE2 syntax safety.
+- [x] HTML and JSON verification reports; successful verification is required before state advances.
+- [x] Parser state machine with report-bound activation; failed candidates remain drafts.
+- [x] `rosetta bench` writes `docs/benchmarks.md` from a real local measurement (3000 records processed; 12592.58 records/sec; coverage 1.0).
+- [x] Full validation: `pip check` clean; `pytest` 52 passed in 9.63s; `ruff check .` clean; `mypy src` clean (17 source files).
+- [x] Commit `Gate 3: parser verification and measured benchmark`; tag `gate-3-done`.
 
 ## Gate 4
 

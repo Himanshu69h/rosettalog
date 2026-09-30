@@ -1,0 +1,55 @@
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+from typer.testing import CliRunner
+
+from rosettalog.benchmarks import run_benchmark, write_benchmark_report
+from rosettalog.cli import app
+
+ROOT = Path(__file__).resolve().parents[1]
+PARSER_SCHEMA = ROOT / "schemas" / "parser.schema.json"
+runner = CliRunner()
+
+
+def test_benchmark_measures_parser_and_writes_report(tmp_path: Path) -> None:
+    input_file = ROOT / "samples" / "known" / "asa.log"
+    result = run_benchmark(
+        input_file,
+        ROOT / "parsers",
+        PARSER_SCHEMA,
+        iterations=2,
+    )
+    report_path = tmp_path / "benchmarks.md"
+    write_benchmark_report(result, report_path)
+
+    assert result.records_processed == 6
+    assert result.parsed_records == 6
+    assert result.coverage == 1.0
+    assert result.elapsed_seconds > 0
+    assert result.records_per_second > 0
+    assert json.loads(
+        report_path.read_text(encoding="utf-8").split("```json\n", 1)[1].split("\n```", 1)[0]
+    )["records_per_second"] > 0
+
+
+def test_bench_cli_writes_requested_report(tmp_path: Path) -> None:
+    report_path = tmp_path / "benchmarks.md"
+    result = runner.invoke(
+        app,
+        [
+            "bench",
+            str(ROOT / "samples" / "known" / "asa.log"),
+            "--parsers",
+            str(ROOT / "parsers"),
+            "--parser-schema",
+            str(PARSER_SCHEMA),
+            "--report",
+            str(report_path),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert report_path.is_file()
+    assert json.loads(result.stdout)["parsed_records"] == 3

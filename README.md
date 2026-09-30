@@ -4,13 +4,11 @@ RosettaLog is an air-gapped, containerized framework that converts perimeter-net
 
 ## Implementation status
 
-Gate 0 is frozen. Gate 1 now provides YAML-driven parsing for the four checked-in formats, append-only compressed raw retention, schema-validated envelopes, quarantine, Parquet output, DuckDB queries, and CLI lineage verification.
+Gate 0 is frozen. Gate 1 provides YAML-driven parsing for the four checked-in formats, append-only compressed raw retention, schema-validated envelopes, quarantine, Parquet output, DuckDB queries, and CLI lineage verification. Gate 2 adds offline parser learning, field inference, OCSF alias mapping, draft YAML emission, and a review queue. Gate 3 adds labeled-fixture verification, report-bound parser activation, JSON/HTML reports, and measured parser benchmarks.
 
 Remaining work is explicitly marked STUB until its gate is implemented:
 
-- STUB: Gate 2 parser learning, field inference, OCSF mapping, YAML emission, and review workflow.
-- STUB: Gate 3 verification reports, parser state machine, and benchmark command.
-- STUB: Gate 4 drift monitoring, export formats, FastAPI service, Streamlit UI, and airgap test.
+- STUB: Gate 4 drift monitoring, export formats, FastAPI service, Streamlit UI, and network-disabled container test.
 
 ## Product scope
 
@@ -81,6 +79,15 @@ Or with Docker:
 docker compose build
 ```
 
+The parser lifecycle commands are `rosetta learn`, `rosetta verify`, and
+`rosetta activate`. Verification fixture format and state transitions are
+described in [docs/parser-verification.md](./docs/parser-verification.md).
+Capture a local parser-throughput measurement with:
+
+```powershell
+python -m rosettalog bench samples\known\asa.log --report docs\benchmarks.md
+```
+
 ## Security and compliance choices
 
 - Raw bytes are kept unchanged in an append-only store.
@@ -100,4 +107,6 @@ These are baseline contracts for the rest of the system and should not be change
 
 ## Notes
 
-Frozen schemas remain the contracts for all later gates. The STUB list above is the current implementation boundary; benchmark and accuracy results will be documented only after real runs.
+Frozen schemas remain the contracts for all later gates. Benchmark measurements
+are local runs on the named fixture and must not be interpreted as billion-event
+scale results.

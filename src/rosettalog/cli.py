@@ -9,10 +9,12 @@ import typer
 from jsonschema import FormatChecker, ValidationError, validate
 
 from rosettalog.analytics import ParquetSink, query_events
+from rosettalog.benchmarks import run_benchmark, write_benchmark_report
 from rosettalog.ingest import Ingestor
 from rosettalog.learning import ParserLearner, ReviewList, YamlEmitter
 from rosettalog.parsing import ParserRegistry
 from rosettalog.rawstore import RawStore, RawStoreError
+from rosettalog.verification import ParserVerifier, transition_parser
 
 app = typer.Typer(add_completion=False, no_args_is_help=True, help="RosettaLog CLI")
 
@@ -85,6 +87,79 @@ def learn(
             sort_keys=True,
         )
     )
+
+
+@app.command()
+def verify(
+    parser_file: Path,
+    cases_file: Path,
+    parser_schema: Path = typer.Option(Path("schemas/parser.schema.json"), "--parser-schema"),
+    report_dir: Path = typer.Option(Path("verification_reports"), "--report-dir"),
+) -> None:
+    """Verify a draft parser against labeled JSONL cases and create reports."""
+    try:
+        verifier = ParserVerifier(parser_schema)
+        report = verifier.verify(parser_file, cases_file)
+        json_report, html_report = verifier.write_reports(report, report_dir)
+        if report.valid:
+            transition_parser(
+                parser_file,
+                "verified",
+                parser_schema,
+                verify_report_ref=str(json_report.resolve()),
+            )
+    except (OSError, ValueError, ValidationError) as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(code=1) from error
+    typer.echo(
+        json.dumps(
+            {
+                **report.as_dict(),
+                "json_report": str(json_report),
+                "html_report": str(html_report),
+            },
+            sort_keys=True,
+        )
+    )
+    if not report.valid:
+        raise typer.Exit(code=1)
+
+
+@app.command()
+def activate(
+    parser_file: Path,
+    parser_schema: Path = typer.Option(Path("schemas/parser.schema.json"), "--parser-schema"),
+) -> None:
+    """Activate a parser that has passed verification."""
+    try:
+        transition_parser(parser_file, "active", parser_schema)
+    except (OSError, ValueError, ValidationError) as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(code=1) from error
+    typer.echo(json.dumps({"parser_file": str(parser_file), "state": "active"}))
+
+
+@app.command()
+def bench(
+    input_file: Path,
+    parser_dir: Path = typer.Option(Path("parsers"), "--parsers"),
+    parser_schema: Path = typer.Option(Path("schemas/parser.schema.json"), "--parser-schema"),
+    report: Path = typer.Option(Path("docs/benchmarks.md"), "--report"),
+    iterations: int = typer.Option(1, min=1, max=1000),
+) -> None:
+    """Measure parser throughput on a local input file and write a report."""
+    try:
+        result = run_benchmark(
+            input_file,
+            parser_dir,
+            parser_schema,
+            iterations=iterations,
+        )
+        write_benchmark_report(result, report)
+    except (OSError, UnicodeDecodeError, ValueError, ValidationError) as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(code=1) from error
+    typer.echo(json.dumps({**result.as_dict(), "report": str(report)}, sort_keys=True))
 
 
 @app.command()
