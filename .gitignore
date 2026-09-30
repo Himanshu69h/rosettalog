@@ -7,6 +7,10 @@ node_modules/
 .dist/
 .coverage
 *.log
+!samples/known/asa.log
+!samples/known/fortigate.log
+!samples/known/cef.log
+!samples/known/json.log
 .mypy_cache/
 .ruff_cache/
 .pytest_cache/

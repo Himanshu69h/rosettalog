@@ -1,0 +1,3 @@
+Sep 29 08:15:00 fw01 %ASA-4-106023: Deny tcp src 10.0.0.5/443 dst 203.0.113.4/443 by access-group "OUTSIDE_IN"
+Sep 29 08:15:05 fw01 %ASA-4-106023: Deny tcp src 10.0.0.7/80 dst 203.0.113.10/80 by access-group "OUTSIDE_IN"
+Sep 29 08:16:00 fw01 %ASA-4-106023: Allow tcp src 10.0.0.12/443 dst 198.51.100.8/443 by access-group "INTERNAL"

@@ -1,0 +1,2 @@
+CEF:0|Cisco|ASA|9.12|106023|Deny|5|src=10.0.0.5 dst=203.0.113.4 proto=tcp spt=443 dpt=443 msg=Access denied
+CEF:0|Fortinet|FortiGate|7.0|000000001|Accept|3|src=10.0.0.7 dst=198.51.100.11 proto=udp spt=53 dpt=53 msg=Allowed flow

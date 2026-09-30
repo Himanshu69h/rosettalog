@@ -1,0 +1,2 @@
+date=2026-09-29 time=08:15:00 log_id=000000001 action=deny srcip=10.0.0.5 dstip=203.0.113.4 proto=tcp srcport=443 dstport=443
+date=2026-09-29 time=08:15:05 log_id=000000001 action=accept srcip=10.0.0.8 dstip=198.51.100.15 proto=udp srcport=53 dstport=53
